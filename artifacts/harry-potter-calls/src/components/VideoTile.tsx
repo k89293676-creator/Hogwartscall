@@ -22,84 +22,105 @@ const HOUSE_COLORS: Record<string, { primary: string; secondary: string }> = {
   hufflepuff: { primary: '#F0C75E', secondary: '#372E29' },
 };
 
-function HouseFrame({ house, color }: { house: string; color: string }) {
-  if (house === 'gryffindor') {
-    return (
-      <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ zIndex: 2 }}>
-        <path d="M0 8 Q0 0 8 0 L0 0 Z" fill={color} opacity="0.7"/>
-        <path d="M92 0 Q100 0 100 8 L100 0 Z" fill={color} opacity="0.7"/>
-        <path d="M0 92 Q0 100 8 100 L0 100 Z" fill={color} opacity="0.7"/>
-        <path d="M100 92 Q100 100 92 100 L100 100 Z" fill={color} opacity="0.7"/>
-        <ellipse cx="8" cy="8" rx="5" ry="4" fill={color} opacity="0.5"/>
-        <circle cx="8" cy="6" r="2.5" fill={color} opacity="0.6"/>
-        <circle cx="8" cy="6" r="3.5" fill="none" stroke={color} strokeWidth="0.8" opacity="0.4"/>
-        <ellipse cx="92" cy="8" rx="5" ry="4" fill={color} opacity="0.5"/>
-        <circle cx="92" cy="6" r="2.5" fill={color} opacity="0.6"/>
-        <circle cx="92" cy="6" r="3.5" fill="none" stroke={color} strokeWidth="0.8" opacity="0.4"/>
-        <rect x="0" y="0" width="100" height="100" fill="none" stroke={color} strokeWidth="1.5" opacity="0.5" rx="1"/>
-        <path d="M4 4 L96 4 M4 96 L96 96 M4 4 L4 96 M96 4 L96 96" stroke={color} strokeWidth="0.4" opacity="0.3" fill="none"/>
-        <path d="M35 0 Q50 6 65 0" stroke={color} strokeWidth="0.8" fill="none" opacity="0.5"/>
-        <path d="M35 100 Q50 94 65 100" stroke={color} strokeWidth="0.8" fill="none" opacity="0.5"/>
-      </svg>
-    );
-  }
-  if (house === 'slytherin') {
-    return (
-      <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ zIndex: 2 }}>
-        <path d="M2 10 Q5 18 2 26 Q5 34 2 42 Q5 50 2 58 Q5 66 2 74 Q5 82 2 90" stroke={color} strokeWidth="1.2" fill="none" opacity="0.6"/>
-        <path d="M98 10 Q95 18 98 26 Q95 34 98 42 Q95 50 98 58 Q95 66 98 74 Q95 82 98 90" stroke={color} strokeWidth="1.2" fill="none" opacity="0.6"/>
-        <path d="M10 2 Q18 5 26 2 Q34 5 42 2 Q50 5 58 2 Q66 5 74 2 Q82 5 90 2" stroke={color} strokeWidth="1.2" fill="none" opacity="0.6"/>
-        <path d="M10 98 Q18 95 26 98 Q34 95 42 98 Q50 95 58 98 Q66 95 74 98 Q82 95 90 98" stroke={color} strokeWidth="1.2" fill="none" opacity="0.6"/>
-        <ellipse cx="5" cy="5" rx="4" ry="3" fill={color} opacity="0.3"/>
-        <ellipse cx="95" cy="5" rx="4" ry="3" fill={color} opacity="0.3"/>
-        <ellipse cx="5" cy="95" rx="4" ry="3" fill={color} opacity="0.3"/>
-        <ellipse cx="95" cy="95" rx="4" ry="3" fill={color} opacity="0.3"/>
-      </svg>
-    );
-  }
-  if (house === 'ravenclaw') {
-    return (
-      <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ zIndex: 2 }}>
-        <rect x="1" y="1" width="98" height="98" fill="none" stroke={color} strokeWidth="0.8" opacity="0.5" rx="1"/>
-        <rect x="4" y="4" width="92" height="92" fill="none" stroke={color} strokeWidth="0.4" opacity="0.3" rx="1"/>
-        <path d="M0 0 Q8 4 4 12 Q0 8 0 0Z" fill={color} opacity="0.4"/>
-        <path d="M100 0 Q92 4 96 12 Q100 8 100 0Z" fill={color} opacity="0.4"/>
-        <path d="M0 20 L8 14 L16 20 L8 26 Z" fill={color} opacity="0.25"/>
-        <path d="M100 20 L92 14 L84 20 L92 26 Z" fill={color} opacity="0.25"/>
-        <path d="M0 80 L8 74 L16 80 L8 86 Z" fill={color} opacity="0.25"/>
-        <path d="M100 80 L92 74 L84 80 L92 86 Z" fill={color} opacity="0.25"/>
-        <path d="M20 1 L30 4 L40 1 L50 4 L60 1 L70 4 L80 1" stroke={color} strokeWidth="0.5" fill="none" opacity="0.4"/>
-        <path d="M20 99 L30 96 L40 99 L50 96 L60 99 L70 96 L80 99" stroke={color} strokeWidth="0.5" fill="none" opacity="0.4"/>
-      </svg>
-    );
-  }
-  if (house === 'hufflepuff') {
-    return (
-      <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ zIndex: 2 }}>
-        <rect x="0" y="0" width="100" height="100" fill="none" stroke={color} strokeWidth="0.8" opacity="0.4"/>
-        <rect x="0" y="0" width="12" height="3" fill={color} opacity="0.4"/>
-        <rect x="0" y="5" width="8" height="2" fill={color} opacity="0.3"/>
-        <rect x="88" y="0" width="12" height="3" fill={color} opacity="0.4"/>
-        <rect x="92" y="5" width="8" height="2" fill={color} opacity="0.3"/>
-        <rect x="0" y="97" width="12" height="3" fill={color} opacity="0.4"/>
-        <rect x="0" y="93" width="8" height="2" fill={color} opacity="0.3"/>
-        <rect x="88" y="97" width="12" height="3" fill={color} opacity="0.4"/>
-        <rect x="92" y="93" width="8" height="2" fill={color} opacity="0.3"/>
-        <path d="M20 0 L24 4 L28 0" stroke={color} strokeWidth="0.8" fill="none" opacity="0.5"/>
-        <path d="M40 0 L44 4 L48 0" stroke={color} strokeWidth="0.8" fill="none" opacity="0.5"/>
-        <path d="M60 0 L64 4 L68 0" stroke={color} strokeWidth="0.8" fill="none" opacity="0.5"/>
-        <path d="M20 100 L24 96 L28 100" stroke={color} strokeWidth="0.8" fill="none" opacity="0.5"/>
-        <path d="M40 100 L44 96 L48 100" stroke={color} strokeWidth="0.8" fill="none" opacity="0.5"/>
-        <path d="M60 100 L64 96 L68 100" stroke={color} strokeWidth="0.8" fill="none" opacity="0.5"/>
-      </svg>
-    );
-  }
+function HouseFrame({ house, borderColor }: { house?: string; borderColor: string }) {
+  if (house === 'gryffindor') return (
+    <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100"
+      preserveAspectRatio="none" style={{ zIndex: 2 }}>
+      <path d="M10,2 Q15,0 20,2 Q25,0 30,2 Q35,0 40,2 Q45,0 50,2 Q55,0 60,2 Q65,0 70,2 Q75,0 80,2 Q85,0 90,2"
+        stroke={borderColor} strokeWidth="0.8" fill="none" opacity="0.7"/>
+      <path d="M10,98 Q15,100 20,98 Q25,100 30,98 Q35,100 40,98 Q45,100 50,98 Q55,100 60,98 Q65,100 70,98 Q75,100 80,98 Q85,100 90,98"
+        stroke={borderColor} strokeWidth="0.8" fill="none" opacity="0.7"/>
+      {([[5,5],[95,5],[5,95],[95,95]] as [number,number][]).map(([cx,cy],i) => (
+        <g key={i} transform={`translate(${cx},${cy})`}>
+          <circle r="4.5" fill={borderColor} opacity="0.25"/>
+          <circle r="4.5" fill="none" stroke={borderColor} strokeWidth="0.6" opacity="0.7"/>
+          <circle r="2" fill={borderColor} opacity="0.4"/>
+          <path d="M-2.5,-1.5 Q0,-3 2.5,-1.5 Q3,0.5 0,2 Q-3,0.5 -2.5,-1.5Z" fill={borderColor} opacity="0.6"/>
+        </g>
+      ))}
+      <line x1="2" y1="12" x2="2" y2="88" stroke={borderColor} strokeWidth="0.4" opacity="0.4"/>
+      <line x1="98" y1="12" x2="98" y2="88" stroke={borderColor} strokeWidth="0.4" opacity="0.4"/>
+      <path d="M35,2 Q50,-2 65,2" stroke={borderColor} strokeWidth="1" fill="none" opacity="0.5"/>
+    </svg>
+  );
+
+  if (house === 'slytherin') return (
+    <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100"
+      preserveAspectRatio="none" style={{ zIndex: 2 }}>
+      <path d="M2,10 Q5,20 2,30 Q-1,40 2,50 Q5,60 2,70 Q-1,80 2,90"
+        stroke={borderColor} strokeWidth="0.8" fill="none" opacity="0.55"/>
+      <path d="M98,10 Q95,20 98,30 Q101,40 98,50 Q95,60 98,70 Q101,80 98,90"
+        stroke={borderColor} strokeWidth="0.8" fill="none" opacity="0.55"/>
+      {[10,20,30,40,50,60,70,80,90].map((x,i) => (
+        <g key={i}>
+          <path d={`M${x},2 L${x+3},5 L${x},8 L${x-3},5 Z`} fill={borderColor} opacity="0.35" stroke={borderColor} strokeWidth="0.3"/>
+          <path d={`M${x},92 L${x+3},95 L${x},98 L${x-3},95 Z`} fill={borderColor} opacity="0.35" stroke={borderColor} strokeWidth="0.3"/>
+        </g>
+      ))}
+      {([[4,4],[96,4],[4,96],[96,96]] as [number,number][]).map(([cx,cy],i) => (
+        <ellipse key={i} cx={cx} cy={cy} rx="4" ry="5" fill={borderColor} opacity="0.22" stroke={borderColor} strokeWidth="0.5"/>
+      ))}
+    </svg>
+  );
+
+  if (house === 'ravenclaw') return (
+    <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100"
+      preserveAspectRatio="none" style={{ zIndex: 2 }}>
+      <rect x="1" y="1" width="98" height="98" fill="none" stroke={borderColor} strokeWidth="0.5" opacity="0.4"/>
+      <rect x="3" y="3" width="94" height="94" fill="none" stroke={borderColor} strokeWidth="0.3" opacity="0.25"/>
+      {[10,25,40,55,70,85].map((x,i) => (
+        <g key={i}>
+          <path d={`M${x},1 L${x+5},6 L${x+10},1`} stroke={borderColor} strokeWidth="0.6" fill="none" opacity="0.5"/>
+          <path d={`M${x},99 L${x+5},94 L${x+10},99`} stroke={borderColor} strokeWidth="0.6" fill="none" opacity="0.5"/>
+        </g>
+      ))}
+      <path d="M2,8 Q8,4 14,8 Q10,12 2,8Z" fill={borderColor} opacity="0.35"/>
+      <path d="M98,8 Q92,4 86,8 Q90,12 98,8Z" fill={borderColor} opacity="0.35"/>
+      <path d="M2,92 Q8,96 14,92 Q10,88 2,92Z" fill={borderColor} opacity="0.35"/>
+      <path d="M98,92 Q92,96 86,92 Q90,88 98,92Z" fill={borderColor} opacity="0.35"/>
+      <path d="M46,1 L50,5 L54,1 L50,-2Z" fill={borderColor} opacity="0.5"/>
+    </svg>
+  );
+
+  if (house === 'hufflepuff') return (
+    <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100"
+      preserveAspectRatio="none" style={{ zIndex: 2 }}>
+      {[8,20,32,44,56,68,80,92].map((x,i) => (
+        <g key={i}>
+          <path d={`M${x},1 L${x+4},4 L${x+4},8 L${x},11 L${x-4},8 L${x-4},4 Z`}
+            fill="none" stroke={borderColor} strokeWidth="0.6" opacity="0.45"/>
+          <path d={`M${x},89 L${x+4},92 L${x+4},96 L${x},99 L${x-4},96 L${x-4},92 Z`}
+            fill="none" stroke={borderColor} strokeWidth="0.6" opacity="0.45"/>
+        </g>
+      ))}
+      <line x1="1" y1="35" x2="5" y2="35" stroke={borderColor} strokeWidth="2" opacity="0.6"/>
+      <line x1="1" y1="38" x2="5" y2="38" stroke={borderColor} strokeWidth="1" opacity="0.4"/>
+      <line x1="1" y1="62" x2="5" y2="62" stroke={borderColor} strokeWidth="2" opacity="0.6"/>
+      <line x1="1" y1="65" x2="5" y2="65" stroke={borderColor} strokeWidth="1" opacity="0.4"/>
+      <line x1="95" y1="35" x2="99" y2="35" stroke={borderColor} strokeWidth="2" opacity="0.6"/>
+      <line x1="95" y1="38" x2="99" y2="38" stroke={borderColor} strokeWidth="1" opacity="0.4"/>
+      <line x1="95" y1="62" x2="99" y2="62" stroke={borderColor} strokeWidth="2" opacity="0.6"/>
+      <line x1="95" y1="65" x2="99" y2="65" stroke={borderColor} strokeWidth="1" opacity="0.4"/>
+      {([[5,5],[95,5],[5,95],[95,95]] as [number,number][]).map(([cx,cy],i) => (
+        <g key={i}>
+          {[0,60,120,180,240,300].map(deg => (
+            <ellipse key={deg} cx={cx + Math.cos(deg*Math.PI/180)*3} cy={cy + Math.sin(deg*Math.PI/180)*3}
+              rx="1.5" ry="2"
+              transform={`rotate(${deg} ${cx + Math.cos(deg*Math.PI/180)*3} ${cy + Math.sin(deg*Math.PI/180)*3})`}
+              fill={borderColor} opacity="0.5"/>
+          ))}
+        </g>
+      ))}
+    </svg>
+  );
+
   return (
-    <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ zIndex: 2 }}>
-      <path d="M0 8 Q0 0 8 0 L0 0 Z" fill={color} opacity="0.5"/>
-      <path d="M92 0 Q100 0 100 8 L100 0 Z" fill={color} opacity="0.5"/>
-      <path d="M0 92 Q0 100 8 100 L0 100 Z" fill={color} opacity="0.5"/>
-      <path d="M100 92 Q100 100 92 100 L100 100 Z" fill={color} opacity="0.5"/>
+    <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100"
+      preserveAspectRatio="none" style={{ zIndex: 2 }}>
+      <path d="M0 8 Q0 0 8 0 L0 0 Z" fill={borderColor} opacity="0.5"/>
+      <path d="M92 0 Q100 0 100 8 L100 0 Z" fill={borderColor} opacity="0.5"/>
+      <path d="M0 92 Q0 100 8 100 L0 100 Z" fill={borderColor} opacity="0.5"/>
+      <path d="M100 92 Q100 100 92 100 L100 100 Z" fill={borderColor} opacity="0.5"/>
     </svg>
   );
 }
@@ -184,17 +205,77 @@ export function VideoTile({ stream, muted = false, label, className, wizardName,
         transition: 'box-shadow 0.3s ease, filter 0.3s ease',
         ...externalStyle,
       }}>
+
       {stream ? (
         <video ref={videoRef} autoPlay playsInline muted={muted} className="w-full h-full object-cover" />
       ) : (
-        <div className="flex flex-col items-center justify-center text-muted-foreground">
-          {house ? <HouseAnimalPortrait house={house} /> : <Wand2 className="w-12 h-12 mb-4 text-primary opacity-50 animate-pulse" />}
-          <p className="font-cinzel text-sm" style={{ animation: 'portraitSway 4s ease-in-out infinite' }}>Waiting for wizard...</p>
+        <div className="flex flex-col items-center justify-center w-full h-full relative overflow-hidden"
+          style={{ animation: 'portraitSway 6s ease-in-out infinite' }}>
+          {/* Canvas-texture overlay */}
+          <div className="absolute inset-0" style={{
+            background: `
+              repeating-linear-gradient(0deg, rgba(0,0,0,0.03) 0px, rgba(0,0,0,0.03) 1px, transparent 1px, transparent 4px),
+              repeating-linear-gradient(90deg, rgba(0,0,0,0.03) 0px, rgba(0,0,0,0.03) 1px, transparent 1px, transparent 4px)
+            `,
+          }} />
+          {/* Portrait oval */}
+          <div style={{
+            width: 90, height: 110,
+            borderRadius: '50% 50% 50% 50% / 55% 55% 45% 45%',
+            border: `2px solid ${borderColor}60`,
+            background: `radial-gradient(ellipse at 40% 35%, ${borderColor}20, rgba(0,0,0,0.5))`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12,
+            boxShadow: `inset 0 0 20px rgba(0,0,0,0.6), 0 0 20px ${borderColor}20`,
+          }}>
+            {house ? <HouseAnimalPortrait house={house} /> : (
+              <Wand2 className="w-10 h-10 text-primary" style={{ opacity: 0.5, animation: 'float 3s ease-in-out infinite' }} />
+            )}
+          </div>
+          <p className="font-fell text-sm italic" style={{ color: `${borderColor}99` }}>
+            Awaiting {displayName}…
+          </p>
+          <div className="absolute inset-0 pointer-events-none" style={{ animation: 'eyeTrack 4s ease-in-out infinite' }} />
         </div>
       )}
 
-      <HouseFrame house={house || ''} color={borderColor} />
+      {/* House-specific stained glass frame */}
+      <HouseFrame house={house} borderColor={borderColor} />
 
+      {/* Spell bloom flash */}
+      {isSpellActive && spellColor && (
+        <div className="absolute inset-0 pointer-events-none rounded-xl" style={{
+          background: `radial-gradient(ellipse at center, ${spellColor}40 0%, transparent 70%)`,
+          animation: 'spellCharge 0.4s cubic-bezier(0.16,1,0.3,1) forwards',
+          mixBlendMode: 'screen',
+          zIndex: 5,
+        }} />
+      )}
+
+      {/* Pulsing rune ring when spell active */}
+      {isSpellActive && (
+        <div className="absolute top-2 left-2 pointer-events-none" style={{
+          width: 28, height: 28,
+          border: `1px solid ${spellColor || borderColor}`,
+          borderRadius: '50%',
+          animation: 'runeRotate 2s linear infinite',
+          opacity: 0.6,
+          zIndex: 20,
+        }}>
+          <svg viewBox="0 0 28 28" width="28" height="28">
+            {['ᛟ','ᚷ','ᚱ','ᛏ'].map((r, i) => (
+              <text key={i}
+                x={14 + 10 * Math.cos(i * Math.PI / 2)}
+                y={14 + 10 * Math.sin(i * Math.PI / 2)}
+                textAnchor="middle" dominantBaseline="middle" fontSize="5"
+                fill={spellColor || borderColor} opacity="0.8">
+                {r}
+              </text>
+            ))}
+          </svg>
+        </div>
+      )}
+
+      {/* Name label */}
       <div className="absolute top-3 left-3 px-3 py-1 rounded-full backdrop-blur-md z-10"
         style={{ background: 'rgba(0,0,0,0.6)', border: `1px solid ${borderColor}40` }}>
         <span className="font-cinzel text-xs font-semibold" style={{ color: houseColors?.secondary || '#D4AF37' }}>{displayName}</span>

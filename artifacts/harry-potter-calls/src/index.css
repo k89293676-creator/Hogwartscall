@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Cinzel:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=MedievalSharp&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
@@ -95,27 +96,13 @@
 }
 
 /* House Theme Classes */
-.house-gryffindor {
-  --house-primary: #C41E3A;
-  --house-secondary: #D4AF37;
-}
-.house-slytherin {
-  --house-primary: #1A472A;
-  --house-secondary: #AAAAAA;
-}
-.house-ravenclaw {
-  --house-primary: #0E1A40;
-  --house-secondary: #946B2D;
-}
-.house-hufflepuff {
-  --house-primary: #F0C75E;
-  --house-secondary: #372E29;
-}
+.house-gryffindor { --house-primary: #C41E3A; --house-secondary: #D4AF37; }
+.house-slytherin  { --house-primary: #1A472A; --house-secondary: #AAAAAA; }
+.house-ravenclaw  { --house-primary: #0E1A40; --house-secondary: #946B2D; }
+.house-hufflepuff { --house-primary: #F0C75E; --house-secondary: #372E29; }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
+  * { @apply border-border; }
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Cinzel', serif;
@@ -123,23 +110,70 @@
   }
 }
 
-.font-harry { font-family: 'Cinzel Decorative', cursive; }
-.font-cinzel { font-family: 'Cinzel', serif; }
+.font-harry   { font-family: 'Cinzel Decorative', cursive; }
+.font-cinzel  { font-family: 'Cinzel', serif; }
+.font-fell    { font-family: 'IM Fell English', serif; }
+.font-medieval { font-family: 'MedievalSharp', serif; }
 
 /* Magic glow effects */
 .glow-gold { box-shadow: 0 0 20px rgba(212, 175, 55, 0.4), 0 0 40px rgba(212, 175, 55, 0.2); }
 .glow-gold-text { text-shadow: 0 0 20px rgba(212, 175, 55, 0.6); }
-.magic-border { border: 1px solid rgba(212, 175, 55, 0.4); box-shadow: inset 0 0 15px rgba(212, 175, 55, 0.05), 0 0 15px rgba(212, 175, 55, 0.15); }
+
+/* Animated living magic border */
+.magic-border {
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  box-shadow:
+    inset 0 0 20px rgba(212, 175, 55, 0.07),
+    0 0 18px rgba(212, 175, 55, 0.18),
+    0 0 40px rgba(212, 175, 55, 0.06);
+  animation: magicBorderBreath 4s ease-in-out infinite;
+}
+
+@keyframes magicBorderBreath {
+  0%, 100% {
+    box-shadow:
+      inset 0 0 20px rgba(212,175,55,0.07),
+      0 0 18px rgba(212,175,55,0.18),
+      0 0 40px rgba(212,175,55,0.06);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 30px rgba(212,175,55,0.12),
+      0 0 30px rgba(212,175,55,0.30),
+      0 0 60px rgba(212,175,55,0.10);
+  }
+}
 
 /* Parchment card */
 .parchment {
-  background:
-    radial-gradient(ellipse at 20% 30%, rgba(90,60,20,0.18) 0%, transparent 60%),
-    radial-gradient(ellipse at 80% 70%, rgba(80,50,15,0.15) 0%, transparent 60%),
-    radial-gradient(ellipse at 50% 50%, rgba(60,40,10,0.1) 0%, transparent 80%),
-    linear-gradient(135deg, rgba(30,20,10,0.97) 0%, rgba(22,16,6,0.99) 100%);
-  border: 1px solid rgba(212,175,55,0.3);
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeBlend in='SourceGraphic' mode='multiply'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23noise)' opacity='0.06'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse at 15% 20%, rgba(120, 80, 20, 0.22) 0%, transparent 55%),
+    radial-gradient(ellipse at 85% 80%, rgba(100, 60, 10, 0.18) 0%, transparent 55%),
+    radial-gradient(ellipse at 50% 50%, rgba(70, 45, 8, 0.12) 0%, transparent 75%),
+    linear-gradient(160deg,
+      rgba(32, 22, 8, 0.98) 0%,
+      rgba(24, 17, 5, 0.99) 40%,
+      rgba(20, 14, 4, 1.0) 100%
+    );
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  position: relative;
 }
+
+.parchment::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(0,0,0,0.35) 0%, transparent 30%),
+    radial-gradient(circle at 100% 0%, rgba(0,0,0,0.30) 0%, transparent 30%),
+    radial-gradient(circle at 0% 100%, rgba(0,0,0,0.30) 0%, transparent 30%),
+    radial-gradient(circle at 100% 100%, rgba(0,0,0,0.35) 0%, transparent 30%);
+  z-index: 0;
+}
+.parchment > * { position: relative; z-index: 1; }
 
 /* Spell cooldown animation */
 @keyframes spell-cooldown { from { stroke-dashoffset: 0; } to { stroke-dashoffset: 126; } }
@@ -178,13 +212,8 @@
   transform: translateX(-150%);
   transition: none;
 }
-.wand-btn:hover::after {
-  animation: wandWave 0.6s ease forwards;
-}
-@keyframes wandWave {
-  from { transform: translateX(-150%); }
-  to { transform: translateX(250%); }
-}
+.wand-btn:hover::after { animation: wandWave 0.6s ease forwards; }
+@keyframes wandWave { from { transform: translateX(-150%); } to { transform: translateX(250%); } }
 
 /* Spark burst on click */
 @keyframes sparkBurst {
@@ -210,10 +239,7 @@
 .house-selected { animation: houseSelect 0.35s ease forwards; }
 
 /* Ink writing stroke animation */
-@keyframes inkWrite {
-  from { stroke-dashoffset: 600; }
-  to { stroke-dashoffset: 0; }
-}
+@keyframes inkWrite { from { stroke-dashoffset: 600; } to { stroke-dashoffset: 0; } }
 
 /* Floo transition full-screen */
 @keyframes flooTransitionUp {
@@ -270,27 +296,92 @@
 * { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cline x1='4' y1='28' x2='28' y2='4' stroke='%23D4AF37' stroke-width='3' stroke-linecap='round'/%3E%3Ccircle cx='28' cy='4' r='3' fill='%23FFD700'/%3E%3C/svg%3E") 4 28, auto; }
 canvas { cursor: crosshair; }
 
-/* ─── Magical Enhancements ─────────────────────────── */
-@keyframes torchFlicker {
-  0%, 100% { border-color: rgba(212,175,55,0.4); box-shadow: inset 0 0 15px rgba(212,175,55,0.05), 0 0 15px rgba(212,175,55,0.15); }
-  25% { border-color: rgba(255,180,50,0.6); box-shadow: inset 0 0 20px rgba(255,180,50,0.08), 0 0 20px rgba(255,180,50,0.25); }
-  50% { border-color: rgba(212,175,55,0.3); box-shadow: inset 0 0 10px rgba(212,175,55,0.03), 0 0 10px rgba(212,175,55,0.1); }
-  75% { border-color: rgba(255,200,80,0.55); box-shadow: inset 0 0 18px rgba(255,200,80,0.07), 0 0 18px rgba(255,200,80,0.22); }
-}
-.magic-border { animation: torchFlicker 3s ease-in-out infinite; }
-
-@keyframes portraitSway {
-  0%, 100% { transform: rotate(-1deg); }
-  50% { transform: rotate(1deg); }
-}
-
-@keyframes candleRise {
-  0% { transform: translateY(0) scaleX(1); opacity: 0.9; }
-  33% { transform: translateY(-4px) scaleX(1.05); opacity: 1; }
-  66% { transform: translateY(-2px) scaleX(0.97); opacity: 0.85; }
-  100% { transform: translateY(-6px) scaleX(1.02); opacity: 0.7; }
-}
-
 .parchment-texture {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+}
+
+/* === ADVANCED ANIMATIONS === */
+
+@keyframes torchFlicker {
+  0%,100% { opacity: 1; }
+  8%       { opacity: 0.88; }
+  15%      { opacity: 0.95; }
+  22%      { opacity: 0.82; }
+  37%      { opacity: 0.97; }
+  50%      { opacity: 0.78; }
+  62%      { opacity: 0.93; }
+  75%      { opacity: 0.86; }
+  88%      { opacity: 0.99; }
+}
+
+@keyframes portraitSway {
+  0%,100% { transform: rotate(-0.6deg) translateY(0px); }
+  33%     { transform: rotate(0.4deg)  translateY(-2px); }
+  66%     { transform: rotate(-0.3deg) translateY(1px); }
+}
+
+@keyframes letterArrive {
+  0%   { transform: translate(var(--lx, 0), var(--ly, -40px)) rotate(var(--lr, -15deg)) scale(0); opacity: 0; }
+  60%  { transform: translate(0,0) rotate(0deg) scale(1.15); opacity: 1; }
+  100% { transform: translate(0,0) rotate(0deg) scale(1); opacity: 1; }
+}
+
+@keyframes waxCrack {
+  0%   { clip-path: polygon(50% 50%, 50% 50%, 50% 50%, 50% 50%); opacity: 1; }
+  40%  { clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); opacity: 1; }
+  70%  { clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%); opacity: 1; }
+  100% { clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%); opacity: 0; }
+}
+@keyframes waxCrackLines {
+  0%   { stroke-dashoffset: 120; opacity: 0; }
+  30%  { opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 1; }
+}
+
+@keyframes flooSwell {
+  0%   { transform: scaleY(1) scaleX(1); filter: hue-rotate(0deg); }
+  25%  { transform: scaleY(1.6) scaleX(0.85); filter: hue-rotate(20deg); }
+  60%  { transform: scaleY(0.9) scaleX(1.1); filter: hue-rotate(-10deg); }
+  100% { transform: scaleY(1) scaleX(1); filter: hue-rotate(0deg); }
+}
+
+@keyframes houseShimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes spellCharge {
+  0%   { transform: scale(0.6); opacity: 0; }
+  60%  { transform: scale(1.2); opacity: 0.9; }
+  100% { transform: scale(1.0); opacity: 1; }
+}
+
+@keyframes runeRotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes revealUp {
+  from { transform: translateY(24px) scale(0.97); opacity: 0; filter: blur(4px); }
+  to   { transform: translateY(0) scale(1); opacity: 1; filter: blur(0); }
+}
+.reveal-up { animation: revealUp 0.65s cubic-bezier(0.16,1,0.3,1) forwards; }
+
+@keyframes stainedShimmer {
+  0%, 100% { opacity: 0.55; }
+  50%       { opacity: 0.80; }
+}
+
+@keyframes candleDrift {
+  0%   { transform: translate(0, 0) rotate(-1deg); }
+  25%  { transform: translate(3px, -6px) rotate(1deg); }
+  50%  { transform: translate(-2px, -10px) rotate(-0.5deg); }
+  75%  { transform: translate(4px, -5px) rotate(1.5deg); }
+  100% { transform: translate(0, 0) rotate(-1deg); }
+}
+
+@keyframes eyeTrack {
+  0%,100% { transform: translateX(0); }
+  30%     { transform: translateX(2px); }
+  70%     { transform: translateX(-2px); }
 }

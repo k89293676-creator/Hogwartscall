@@ -1,18 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import {
-  createLumos,
-  createIncendio,
-  createExpelliarmus,
-  createWingardium,
-  createPatronus,
-  createAccio,
-  createStupefy,
-  createProtego,
-  createNox,
-  createAlohomora,
-  createRiddikulus,
-  createExpectoPatronum,
+  createLumos, createIncendio, createExpelliarmus, createWingardium,
+  createPatronus, createAccio, createStupefy, createProtego,
+  createNox, createAlohomora, createRiddikulus, createExpectoPatronum,
 } from '@/utils/arEffects';
 import { SPELLS } from '@/utils/spells';
 
@@ -44,50 +35,51 @@ function SpellAnnouncement({ spell }: { spell: string | null }) {
     if (spell) {
       setDisplayed(spell);
       setVisible(true);
-      return;
+    } else {
+      const t = setTimeout(() => setVisible(false), 700);
+      return () => clearTimeout(t);
     }
-    const t = setTimeout(() => setVisible(false), 600);
-    return () => clearTimeout(t);
   }, [spell]);
 
   if (!visible || !displayed) return null;
 
   const color = SPELL_COLORS[displayed] ?? '#FFD700';
-  const spellData = SPELLS.find(s => s.name === displayed);
+  const chars = `${displayed}!`.split('');
 
   return (
-    <div
-      className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-20"
-      style={{ animation: spell ? 'fadeIn 0.15s ease-out' : 'fadeOut 0.6s ease-in forwards' }}
-    >
-      <div
-        className="absolute inset-0"
-        style={{
-          background: `radial-gradient(ellipse at center, ${color}22 0%, transparent 70%)`,
-          animation: 'pulse 0.5s ease-out',
-        }}
-      />
-      <div
-        className="relative font-harry text-4xl md:text-5xl font-bold tracking-widest px-8 py-4 rounded-xl"
-        style={{
-          color,
-          textShadow: `0 0 20px ${color}, 0 0 50px ${color}, 0 0 100px ${color}`,
-          background: `${color}11`,
-          border: `1px solid ${color}44`,
-          backdropFilter: 'blur(4px)',
-          animation: spell ? 'spellBurst 0.3s ease-out' : 'none',
-        }}
-      >
-        {displayed}!
+    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-20">
+      <div className="absolute inset-0" style={{
+        background: `radial-gradient(ellipse at center, ${color}1a 0%, transparent 65%)`,
+      }} />
+      {/* Character-by-character stagger */}
+      <div className="flex items-center justify-center relative flex-wrap" style={{
+        fontFamily: "'Cinzel Decorative', cursive",
+        fontSize: 'clamp(1.6rem, 5vw, 3rem)',
+        fontWeight: 700,
+        color,
+        textShadow: `0 0 16px ${color}, 0 0 40px ${color}90`,
+        letterSpacing: '0.08em',
+        filter: `drop-shadow(0 0 12px ${color})`,
+      }}>
+        {chars.map((ch, i) => (
+          <span key={i} style={{
+            display: 'inline-block',
+            '--lx': `${(Math.random()-0.5)*80}px`,
+            '--ly': `${-(Math.random()*60+20)}px`,
+            '--lr': `${(Math.random()-0.5)*40}deg`,
+            animation: spell
+              ? `letterArrive 0.45s cubic-bezier(0.16,1,0.3,1) ${i * 0.045}s both`
+              : `fadeOut 0.6s ease-in ${Math.max(0,(chars.length-i-1)*0.03)}s both`,
+          } as React.CSSProperties}>
+            {ch === ' ' ? '\u00A0' : ch}
+          </span>
+        ))}
       </div>
-      {spellData && (
-        <div
-          className="mt-2 text-xs font-cinzel tracking-[0.3em] uppercase opacity-70"
-          style={{ color }}
-        >
-          {spellData.description}
-        </div>
-      )}
+      {/* Subtitle */}
+      <div className="mt-3 font-fell italic text-xs tracking-[0.35em] uppercase"
+        style={{ color: `${color}aa`, animation: spell ? `revealUp 0.5s 0.3s both` : undefined }}>
+        {SPELLS.find(s => s.name === displayed)?.description}
+      </div>
     </div>
   );
 }
@@ -101,14 +93,12 @@ export function SpellOverlay({ landmarks, currentSpell }: SpellOverlayProps) {
 
   useEffect(() => {
     if (!containerRef.current) return;
-
     let renderer: THREE.WebGLRenderer | null = null;
     let animationFrameId: number;
 
     try {
       const w = containerRef.current.clientWidth || 640;
       const h = containerRef.current.clientHeight || 480;
-
       const scene = new THREE.Scene();
       sceneRef.current = scene;
 
@@ -156,7 +146,6 @@ export function SpellOverlay({ landmarks, currentSpell }: SpellOverlayProps) {
   useEffect(() => {
     if (!currentSpell || currentSpell === prevSpellRef.current) return;
     prevSpellRef.current = currentSpell;
-
     if (!sceneRef.current || !webglAvailable) return;
 
     const palm = landmarks?.[9];
@@ -166,18 +155,18 @@ export function SpellOverlay({ landmarks, currentSpell }: SpellOverlayProps) {
 
     let effectFn: ((time: number) => boolean) | undefined;
     switch (currentSpell) {
-      case 'Lumos':             effectFn = createLumos(sceneRef.current, pos); break;
-      case 'Incendio':          effectFn = createIncendio(sceneRef.current, pos); break;
-      case 'Expelliarmus':      effectFn = createExpelliarmus(sceneRef.current, pos); break;
-      case 'Wingardium Leviosa':effectFn = createWingardium(sceneRef.current, pos); break;
-      case 'Patronus':          effectFn = createPatronus(sceneRef.current, pos); break;
-      case 'Accio':             effectFn = createAccio(sceneRef.current, pos); break;
-      case 'Stupefy':           effectFn = createStupefy(sceneRef.current, pos); break;
-      case 'Protego':           effectFn = createProtego(sceneRef.current, pos); break;
-      case 'Nox':               effectFn = createNox(sceneRef.current, pos); break;
-      case 'Alohomora':         effectFn = createAlohomora(sceneRef.current, pos); break;
-      case 'Riddikulus':        effectFn = createRiddikulus(sceneRef.current, pos); break;
-      case 'Expecto Patronum':  effectFn = createExpectoPatronum(sceneRef.current, pos); break;
+      case 'Lumos':              effectFn = createLumos(sceneRef.current, pos); break;
+      case 'Incendio':           effectFn = createIncendio(sceneRef.current, pos); break;
+      case 'Expelliarmus':       effectFn = createExpelliarmus(sceneRef.current, pos); break;
+      case 'Wingardium Leviosa': effectFn = createWingardium(sceneRef.current, pos); break;
+      case 'Patronus':           effectFn = createPatronus(sceneRef.current, pos); break;
+      case 'Accio':              effectFn = createAccio(sceneRef.current, pos); break;
+      case 'Stupefy':            effectFn = createStupefy(sceneRef.current, pos); break;
+      case 'Protego':            effectFn = createProtego(sceneRef.current, pos); break;
+      case 'Nox':                effectFn = createNox(sceneRef.current, pos); break;
+      case 'Alohomora':          effectFn = createAlohomora(sceneRef.current, pos); break;
+      case 'Riddikulus':         effectFn = createRiddikulus(sceneRef.current, pos); break;
+      case 'Expecto Patronum':   effectFn = createExpectoPatronum(sceneRef.current, pos); break;
     }
     if (effectFn) activeEffects.current.push(effectFn);
   }, [currentSpell, landmarks, webglAvailable]);
@@ -188,9 +177,7 @@ export function SpellOverlay({ landmarks, currentSpell }: SpellOverlayProps) {
 
   return (
     <div className="absolute inset-0 pointer-events-none z-10">
-      {webglAvailable && (
-        <div ref={containerRef} className="absolute inset-0" />
-      )}
+      {webglAvailable && <div ref={containerRef} className="absolute inset-0" />}
       <SpellAnnouncement spell={currentSpell} />
     </div>
   );
