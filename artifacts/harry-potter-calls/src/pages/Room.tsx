@@ -599,7 +599,7 @@ export default function Room() {
               initial={{ x: -300, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -300, opacity: 0 }}
               transition={{ type: 'spring', damping: 24, stiffness: 200 }}
               className="w-72 flex-shrink-0 parchment border-r border-primary/20 flex flex-col gap-4 p-4 z-10 overflow-y-auto"
-              style={{ background: 'rgba(10,8,20,0.95)', backdropFilter: 'blur(12px)' }}>
+              style={{ background: 'rgba(10,8,20,0.95)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}>
               <div className="space-y-2">
                 <h3 className="font-cinzel text-primary text-xs uppercase tracking-widest">Room Info</h3>
                 <div className="flex items-center gap-2 bg-black/30 rounded-lg px-3 py-2">
@@ -743,7 +743,8 @@ export default function Room() {
             background: 'rgba(5,4,15,0.96)',
             borderTop: '1px solid rgba(212,175,55,0.2)',
             backdropFilter: 'blur(16px)',
-            paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
+            WebkitBackdropFilter: 'blur(16px)',
+            paddingBottom: 'max(env(safe-area-inset-bottom, 0px) + 8px, 12px)',
           }}
         >
           <Button variant={isAudioEnabled ? 'ghost' : 'destructive'} size="icon"
@@ -830,7 +831,8 @@ export default function Room() {
           </div>
 
           {settings.spellPanelVisible && (
-            <div className="overflow-x-auto max-w-[calc(100vw-2rem)]">
+            <div className="overflow-x-auto max-w-[calc(100vw-2rem)]"
+              style={{ touchAction: 'pan-x', WebkitOverflowScrolling: 'touch' } as never}>
               <SpellPanel currentSpell={currentSpell} spells={SPELLS} cooldowns={cooldowns}
                 onSpellCast={castSpellManually} visible={settings.spellPanelVisible} />
             </div>
@@ -849,7 +851,8 @@ export default function Room() {
               <span className="font-harry text-primary">Cast a Spell</span>
               <button onClick={() => setMobileSpellOpen(false)} className="text-muted-foreground text-lg">✕</button>
             </div>
-            <div className="overflow-x-auto px-2 pb-4">
+            <div className="overflow-x-auto px-2 pb-4"
+              style={{ touchAction: 'pan-x', WebkitOverflowScrolling: 'touch' } as never}>
               <SpellPanel currentSpell={currentSpell} spells={SPELLS} cooldowns={cooldowns}
                 onSpellCast={castSpellManually} visible={true} />
             </div>

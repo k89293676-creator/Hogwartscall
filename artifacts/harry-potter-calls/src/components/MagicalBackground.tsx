@@ -106,7 +106,13 @@ function CSSFallbackBackground() {
   );
 }
 
-export function MagicalBackground({ quality = 'cinematic' }: MagicalBackgroundProps) {
+export function MagicalBackground({ quality: qualityProp = 'cinematic' }: MagicalBackgroundProps) {
+  // Auto-downgrade quality on mobile/low-power devices to prevent frame drops
+  const quality = qualityProp === 'cinematic' && (
+    /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+    window.innerWidth < 768
+  ) ? 'balanced' : qualityProp;
+
   const containerRef = useRef<HTMLDivElement>(null);
   const [webglFailed, setWebglFailed] = useState(false);
 

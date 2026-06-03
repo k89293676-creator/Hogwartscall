@@ -35,6 +35,7 @@ function SpellAnnouncement({ spell }: { spell: string | null }) {
     if (spell) {
       setDisplayed(spell);
       setVisible(true);
+      return;
     } else {
       const t = setTimeout(() => setVisible(false), 700);
       return () => clearTimeout(t);

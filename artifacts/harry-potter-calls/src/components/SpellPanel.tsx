@@ -131,7 +131,12 @@ export function SpellPanel({ currentSpell, spells, cooldowns, onSpellCast, visib
 
   return (
     <div className={cn('flex items-center gap-2 overflow-x-auto pb-1 px-1', className)}
-      style={{ scrollbarWidth: 'none' }}>
+      style={{
+        scrollbarWidth: 'none',
+        msOverflowStyle: 'none',
+        WebkitOverflowScrolling: 'touch',
+        touchAction: 'pan-x',
+      } as never}>
       {spells.map(spell => {
         const isActive = currentSpell === spell.name;
         const cooldownEnd = cooldowns[spell.name] ?? 0;
