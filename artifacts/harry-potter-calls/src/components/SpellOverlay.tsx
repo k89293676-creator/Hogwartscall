@@ -9,6 +9,10 @@ import {
   createAccio,
   createStupefy,
   createProtego,
+  createNox,
+  createAlohomora,
+  createRiddikulus,
+  createExpectoPatronum,
 } from '@/utils/arEffects';
 import { SPELLS } from '@/utils/spells';
 
@@ -26,6 +30,10 @@ const SPELL_COLORS: Record<string, string> = {
   Accio: '#9B59B6',
   Stupefy: '#FF1493',
   Protego: '#00BFFF',
+  Nox: '#2C3E50',
+  Alohomora: '#F39C12',
+  Riddikulus: '#E91E63',
+  'Expecto Patronum': '#E8F4FD',
 };
 
 function SpellAnnouncement({ spell }: { spell: string | null }) {
@@ -52,7 +60,6 @@ function SpellAnnouncement({ spell }: { spell: string | null }) {
       className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-20"
       style={{ animation: spell ? 'fadeIn 0.15s ease-out' : 'fadeOut 0.6s ease-in forwards' }}
     >
-      {/* Screen flash */}
       <div
         className="absolute inset-0"
         style={{
@@ -60,7 +67,6 @@ function SpellAnnouncement({ spell }: { spell: string | null }) {
           animation: 'pulse 0.5s ease-out',
         }}
       />
-      {/* Spell name */}
       <div
         className="relative font-harry text-4xl md:text-5xl font-bold tracking-widest px-8 py-4 rounded-xl"
         style={{
@@ -168,6 +174,10 @@ export function SpellOverlay({ landmarks, currentSpell }: SpellOverlayProps) {
       case 'Accio':             effectFn = createAccio(sceneRef.current, pos); break;
       case 'Stupefy':           effectFn = createStupefy(sceneRef.current, pos); break;
       case 'Protego':           effectFn = createProtego(sceneRef.current, pos); break;
+      case 'Nox':               effectFn = createNox(sceneRef.current, pos); break;
+      case 'Alohomora':         effectFn = createAlohomora(sceneRef.current, pos); break;
+      case 'Riddikulus':        effectFn = createRiddikulus(sceneRef.current, pos); break;
+      case 'Expecto Patronum':  effectFn = createExpectoPatronum(sceneRef.current, pos); break;
     }
     if (effectFn) activeEffects.current.push(effectFn);
   }, [currentSpell, landmarks, webglAvailable]);

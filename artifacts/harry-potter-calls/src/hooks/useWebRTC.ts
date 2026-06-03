@@ -9,6 +9,7 @@ interface UseWebRTCReturn {
   dataChannel: RTCDataChannel | null;
   connectionStatus: ConnectionStatus;
   setLocalStream: (stream: MediaStream) => void;
+  peerConnectionRef: React.MutableRefObject<RTCPeerConnection | null>;
 }
 
 const ICE_SERVERS = {
@@ -179,5 +180,5 @@ export function useWebRTC(socket: Socket, roomId: string): UseWebRTCReturn {
     };
   }, []);
 
-  return { localStream, remoteStream, dataChannel, connectionStatus, setLocalStream };
+  return { localStream, remoteStream, dataChannel, connectionStatus, setLocalStream, peerConnectionRef: peerConnection };
 }

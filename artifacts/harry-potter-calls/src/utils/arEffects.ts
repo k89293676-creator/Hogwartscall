@@ -13,7 +13,6 @@ export function createLumos(scene: THREE.Scene, position: THREE.Vector3): Effect
   group.add(light);
   scene.add(group);
 
-  // Particle halo
   const haloGeo = new THREE.BufferGeometry();
   const haloPositions = new Float32Array(60 * 3);
   for (let i = 0; i < 60; i++) {
@@ -68,7 +67,6 @@ export function createIncendio(scene: THREE.Scene, position: THREE.Vector3): Eff
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   const material = new THREE.PointsMaterial({ color: 0xFF4500, size: 0.2, transparent: true, opacity: 1, vertexColors: false });
 
-  // Add a second layer of yellow sparks
   const sparkGeo = new THREE.BufferGeometry();
   const sparkPos = new Float32Array(40 * 3);
   const sparkVel: THREE.Vector3[] = [];
@@ -129,7 +127,6 @@ export function createIncendio(scene: THREE.Scene, position: THREE.Vector3): Eff
 
 export function createExpelliarmus(scene: THREE.Scene, position: THREE.Vector3): EffectFn {
   const group = new THREE.Group();
-  // Multiple lightning segments
   for (let bolt = 0; bolt < 3; bolt++) {
     const points: THREE.Vector3[] = [];
     let curr = position.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.3, (Math.random() - 0.5) * 0.3, 0));
@@ -143,7 +140,6 @@ export function createExpelliarmus(scene: THREE.Scene, position: THREE.Vector3):
     group.add(new THREE.Line(geo, mat));
   }
 
-  // Flash sphere
   const flashGeo = new THREE.SphereGeometry(0.3, 8, 8);
   const flashMat = new THREE.MeshBasicMaterial({ color: 0xFF0055, transparent: true, opacity: 0.9 });
   const flash = new THREE.Mesh(flashGeo, flashMat);
@@ -171,7 +167,6 @@ export function createWingardium(scene: THREE.Scene, position: THREE.Vector3): E
   const group = new THREE.Group();
   group.position.copy(position);
 
-  // Multiple feather planes
   for (let i = 0; i < 5; i++) {
     const geo = new THREE.PlaneGeometry(0.12, 0.4);
     const mat = new THREE.MeshBasicMaterial({ color: 0x98FB98, side: THREE.DoubleSide, transparent: true, opacity: 0.85 });
@@ -182,7 +177,6 @@ export function createWingardium(scene: THREE.Scene, position: THREE.Vector3): E
     group.add(feather);
   }
 
-  // Sparkles
   const sparkGeo = new THREE.BufferGeometry();
   const sparkPos = new Float32Array(30 * 3);
   for (let i = 0; i < 30; i++) {
@@ -230,7 +224,6 @@ export function createPatronus(scene: THREE.Scene, position: THREE.Vector3): Eff
   const group = new THREE.Group();
   group.position.copy(position);
 
-  // Silvery white expanding ring of particles
   const ringCount = 3;
   const rings: { points: THREE.Points; mat: THREE.PointsMaterial; radius: number }[] = [];
 
@@ -257,7 +250,6 @@ export function createPatronus(scene: THREE.Scene, position: THREE.Vector3): Eff
     rings.push({ points: pts, mat, radius: baseRadius });
   }
 
-  // Central glow
   const glowGeo = new THREE.SphereGeometry(0.2, 16, 16);
   const glowMat = new THREE.MeshBasicMaterial({ color: 0xE0F0FF, transparent: true, opacity: 0.9 });
   const glow = new THREE.Mesh(glowGeo, glowMat);
@@ -273,7 +265,7 @@ export function createPatronus(scene: THREE.Scene, position: THREE.Vector3): Eff
     const elapsed = Date.now() - startTime;
     const prog = elapsed / 2500;
 
-    rings.forEach(({ points, mat, radius }, idx) => {
+    rings.forEach(({ points, mat, radius: _r }, idx) => {
       const scale = 1 + prog * (2 + idx * 0.5);
       points.scale.setScalar(scale);
       mat.opacity = Math.max(0, 1 - prog);
@@ -298,7 +290,6 @@ export function createAccio(scene: THREE.Scene, position: THREE.Vector3): Effect
   const pos = new Float32Array(particleCount * 3);
   const velocities: THREE.Vector3[] = [];
 
-  // Spawn particles far away, rushing toward the position
   for (let i = 0; i < particleCount; i++) {
     const startX = position.x + (Math.random() - 0.5) * 8;
     const startY = position.y + (Math.random() - 0.5) * 8;
@@ -314,7 +305,6 @@ export function createAccio(scene: THREE.Scene, position: THREE.Vector3): Effect
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   const mat = new THREE.PointsMaterial({ color: 0x9B59B6, size: 0.15, transparent: true, opacity: 1 });
 
-  // Trail streaks
   const trailGeo = new THREE.BufferGeometry();
   const trailPos = new Float32Array(particleCount * 3);
   trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPos, 3));
@@ -333,9 +323,7 @@ export function createAccio(scene: THREE.Scene, position: THREE.Vector3): Effect
     const trailAttr = trailGeo.getAttribute('position');
 
     for (let i = 0; i < particleCount; i++) {
-      // Save trail position
       trailAttr.setXYZ(i, posAttr.getX(i), posAttr.getY(i), posAttr.getZ(i));
-      // Move toward center
       posAttr.setXYZ(
         i,
         posAttr.getX(i) + velocities[i].x * dt,
@@ -366,14 +354,12 @@ export function createAccio(scene: THREE.Scene, position: THREE.Vector3): Effect
 export function createStupefy(scene: THREE.Scene, position: THREE.Vector3): EffectFn {
   const group = new THREE.Group();
 
-  // Expanding flash sphere
   const flashGeo = new THREE.SphereGeometry(0.1, 16, 16);
   const flashMat = new THREE.MeshBasicMaterial({ color: 0xFF1493, transparent: true, opacity: 1 });
   const flash = new THREE.Mesh(flashGeo, flashMat);
   flash.position.copy(position);
   group.add(flash);
 
-  // Ring shockwave
   const ringPoints: THREE.Vector3[] = [];
   for (let i = 0; i <= 64; i++) {
     const a = (i / 64) * Math.PI * 2;
@@ -385,7 +371,6 @@ export function createStupefy(scene: THREE.Scene, position: THREE.Vector3): Effe
   ring.position.copy(position);
   group.add(ring);
 
-  // Red particle burst
   const pCount = 60;
   const pGeo = new THREE.BufferGeometry();
   const pPos = new Float32Array(pCount * 3);
@@ -444,7 +429,6 @@ export function createProtego(scene: THREE.Scene, position: THREE.Vector3): Effe
   const group = new THREE.Group();
   group.position.copy(position);
 
-  // Shield dome using hemisphere
   const shieldGeo = new THREE.SphereGeometry(1.2, 24, 24, 0, Math.PI * 2, 0, Math.PI / 2);
   const shieldMat = new THREE.MeshBasicMaterial({
     color: 0x00BFFF,
@@ -456,12 +440,10 @@ export function createProtego(scene: THREE.Scene, position: THREE.Vector3): Effe
   const shield = new THREE.Mesh(shieldGeo, shieldMat);
   group.add(shield);
 
-  // Wireframe overlay
   const wireMat = new THREE.MeshBasicMaterial({ color: 0x87CEFA, transparent: true, opacity: 0.5, wireframe: true });
   const wire = new THREE.Mesh(shieldGeo, wireMat);
   group.add(wire);
 
-  // Hexagonal rune particles on the shield surface
   const runeCount = 30;
   const runeGeo = new THREE.BufferGeometry();
   const runePos = new Float32Array(runeCount * 3);
@@ -486,7 +468,6 @@ export function createProtego(scene: THREE.Scene, position: THREE.Vector3): Effe
     const elapsed = Date.now() - startTime;
     const prog = elapsed / 2000;
 
-    // Pulsing shield
     const pulse = 1 + Math.sin(elapsed * 0.008) * 0.05;
     group.scale.setScalar(pulse);
 
@@ -499,6 +480,311 @@ export function createProtego(scene: THREE.Scene, position: THREE.Vector3): Effe
 
     if (elapsed > 2000) {
       scene.remove(group);
+      return true;
+    }
+    return false;
+  };
+}
+
+export function createNox(scene: THREE.Scene, position: THREE.Vector3): EffectFn {
+  const group = new THREE.Group();
+  group.position.copy(position);
+
+  const particleCount = 80;
+  const geo = new THREE.BufferGeometry();
+  const pos = new Float32Array(particleCount * 3);
+  const velocities: THREE.Vector3[] = [];
+
+  for (let i = 0; i < particleCount; i++) {
+    pos[i * 3] = 0;
+    pos[i * 3 + 1] = 0;
+    pos[i * 3 + 2] = 0;
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.random() * Math.PI;
+    velocities.push(new THREE.Vector3(
+      Math.sin(phi) * Math.cos(theta) * (2 + Math.random() * 2),
+      Math.sin(phi) * Math.sin(theta) * (2 + Math.random() * 2),
+      Math.cos(phi) * (1 + Math.random())
+    ));
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const mat = new THREE.PointsMaterial({ color: 0x2C3E50, size: 0.25, transparent: true, opacity: 0.9 });
+  group.add(new THREE.Points(geo, mat));
+
+  const darkGeo = new THREE.SphereGeometry(0.3, 12, 12);
+  const darkMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.8 });
+  const darkSphere = new THREE.Mesh(darkGeo, darkMat);
+  group.add(darkSphere);
+
+  scene.add(group);
+  const startTime = Date.now();
+
+  return (_time: number) => {
+    const elapsed = Date.now() - startTime;
+    const dt = 0.016;
+    const prog = elapsed / 1600;
+
+    const posAttr = geo.getAttribute('position');
+    for (let i = 0; i < particleCount; i++) {
+      const v = velocities[i];
+      posAttr.setXYZ(i,
+        posAttr.getX(i) + v.x * dt,
+        posAttr.getY(i) + v.y * dt,
+        posAttr.getZ(i) + v.z * dt
+      );
+    }
+    posAttr.needsUpdate = true;
+    mat.opacity = Math.max(0, 0.9 - prog);
+    darkSphere.scale.setScalar(1 + prog * 3);
+    darkMat.opacity = Math.max(0, 0.8 - prog);
+
+    if (elapsed > 1600) {
+      scene.remove(group);
+      geo.dispose();
+      mat.dispose();
+      darkGeo.dispose();
+      darkMat.dispose();
+      return true;
+    }
+    return false;
+  };
+}
+
+export function createAlohomora(scene: THREE.Scene, position: THREE.Vector3): EffectFn {
+  const group = new THREE.Group();
+  group.position.copy(position);
+
+  const ringCount = 40;
+  const ringGeo = new THREE.BufferGeometry();
+  const ringPos = new Float32Array(ringCount * 3);
+  for (let i = 0; i < ringCount; i++) {
+    const angle = (i / ringCount) * Math.PI * 2;
+    ringPos[i * 3] = Math.cos(angle) * 0.6;
+    ringPos[i * 3 + 1] = Math.sin(angle) * 0.6;
+    ringPos[i * 3 + 2] = 0;
+  }
+  ringGeo.setAttribute('position', new THREE.BufferAttribute(ringPos, 3));
+  const ringMat = new THREE.PointsMaterial({ color: 0xF39C12, size: 0.15, transparent: true, opacity: 1 });
+  const ring = new THREE.Points(ringGeo, ringMat);
+  group.add(ring);
+
+  const sparkCount = 60;
+  const sparkGeo = new THREE.BufferGeometry();
+  const sparkPos2 = new Float32Array(sparkCount * 3);
+  const sparkVel: THREE.Vector3[] = [];
+  for (let i = 0; i < sparkCount; i++) {
+    sparkPos2[i * 3] = 0; sparkPos2[i * 3 + 1] = 0; sparkPos2[i * 3 + 2] = 0;
+    const a = (i / sparkCount) * Math.PI * 2;
+    sparkVel.push(new THREE.Vector3(
+      Math.cos(a) * (1.5 + Math.random() * 2),
+      Math.sin(a) * (1.5 + Math.random() * 2),
+      (Math.random() - 0.5) * 1
+    ));
+  }
+  sparkGeo.setAttribute('position', new THREE.BufferAttribute(sparkPos2, 3));
+  const sparkMat2 = new THREE.PointsMaterial({ color: 0xFFD700, size: 0.1, transparent: true, opacity: 1 });
+  const sparks = new THREE.Points(sparkGeo, sparkMat2);
+  group.add(sparks);
+
+  const light = new THREE.PointLight(0xF39C12, 3, 6);
+  group.add(light);
+
+  scene.add(group);
+  const startTime = Date.now();
+
+  return (_time: number) => {
+    const elapsed = Date.now() - startTime;
+    const prog = elapsed / 1800;
+    const t = elapsed * 0.003;
+
+    ring.rotation.z = t * 2;
+    ring.scale.setScalar(1 + prog * 2);
+    ringMat.opacity = Math.max(0, 1 - prog);
+
+    const sparkAttr = sparkGeo.getAttribute('position');
+    const dt = 0.016;
+    for (let i = 0; i < sparkCount; i++) {
+      const v = sparkVel[i];
+      sparkAttr.setXYZ(i, sparkAttr.getX(i) + v.x * dt, sparkAttr.getY(i) + v.y * dt, sparkAttr.getZ(i) + v.z * dt);
+    }
+    sparkAttr.needsUpdate = true;
+    sparkMat2.opacity = Math.max(0, 1 - prog);
+    light.intensity = Math.max(0, 3 - prog * 3);
+
+    if (elapsed > 1800) {
+      scene.remove(group);
+      ringGeo.dispose(); ringMat.dispose();
+      sparkGeo.dispose(); sparkMat2.dispose();
+      return true;
+    }
+    return false;
+  };
+}
+
+export function createRiddikulus(scene: THREE.Scene, position: THREE.Vector3): EffectFn {
+  const group = new THREE.Group();
+  group.position.copy(position);
+
+  const confettiColors = [0xE91E63, 0xFF5722, 0xFFEB3B, 0x4CAF50, 0x2196F3, 0x9C27B0];
+  const confettiCount = 60;
+  const meshes: THREE.Mesh[] = [];
+  const velocities: THREE.Vector3[] = [];
+  const rotSpeeds: THREE.Vector3[] = [];
+
+  for (let i = 0; i < confettiCount; i++) {
+    const geo = new THREE.PlaneGeometry(0.1, 0.1);
+    const mat = new THREE.MeshBasicMaterial({
+      color: confettiColors[i % confettiColors.length],
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 1,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(0, 0, 0);
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.random() * Math.PI;
+    velocities.push(new THREE.Vector3(
+      Math.sin(phi) * Math.cos(theta) * (3 + Math.random() * 3),
+      Math.sin(phi) * Math.sin(theta) * (3 + Math.random() * 3),
+      Math.cos(phi) * (1 + Math.random() * 2)
+    ));
+    rotSpeeds.push(new THREE.Vector3(
+      (Math.random() - 0.5) * 10,
+      (Math.random() - 0.5) * 10,
+      (Math.random() - 0.5) * 10
+    ));
+    group.add(mesh);
+    meshes.push(mesh);
+  }
+
+  const light = new THREE.PointLight(0xE91E63, 4, 8);
+  group.add(light);
+
+  scene.add(group);
+  const startTime = Date.now();
+
+  return (_time: number) => {
+    const elapsed = Date.now() - startTime;
+    const dt = 0.016;
+    const prog = elapsed / 2000;
+
+    meshes.forEach((mesh, i) => {
+      const v = velocities[i];
+      v.y -= 3 * dt;
+      mesh.position.x += v.x * dt;
+      mesh.position.y += v.y * dt;
+      mesh.position.z += v.z * dt;
+      mesh.rotation.x += rotSpeeds[i].x * dt;
+      mesh.rotation.y += rotSpeeds[i].y * dt;
+      mesh.rotation.z += rotSpeeds[i].z * dt;
+      (mesh.material as THREE.MeshBasicMaterial).opacity = Math.max(0, 1 - prog);
+    });
+    light.intensity = Math.max(0, 4 - prog * 4);
+
+    if (elapsed > 2000) {
+      scene.remove(group);
+      return true;
+    }
+    return false;
+  };
+}
+
+export function createExpectoPatronum(scene: THREE.Scene, _position: THREE.Vector3): EffectFn {
+  const group = new THREE.Group();
+
+  // Silver stag outline from LineSegments
+  const deerPoints: [THREE.Vector3, THREE.Vector3][] = [
+    // Body
+    [new THREE.Vector3(-1.2, 0, 0), new THREE.Vector3(1.2, 0, 0)],
+    [new THREE.Vector3(-1.2, 0, 0), new THREE.Vector3(-1.2, 0.8, 0)],
+    [new THREE.Vector3(1.2, 0, 0), new THREE.Vector3(1.2, 0.8, 0)],
+    [new THREE.Vector3(-1.2, 0.8, 0), new THREE.Vector3(1.2, 0.8, 0)],
+    // Neck & head
+    [new THREE.Vector3(1.2, 0.8, 0), new THREE.Vector3(1.5, 1.4, 0)],
+    [new THREE.Vector3(1.5, 1.4, 0), new THREE.Vector3(1.7, 1.8, 0)],
+    [new THREE.Vector3(1.7, 1.8, 0), new THREE.Vector3(1.9, 1.6, 0)],
+    [new THREE.Vector3(1.9, 1.6, 0), new THREE.Vector3(1.5, 1.4, 0)],
+    // Antlers
+    [new THREE.Vector3(1.7, 1.8, 0), new THREE.Vector3(1.5, 2.5, 0)],
+    [new THREE.Vector3(1.5, 2.5, 0), new THREE.Vector3(1.2, 2.8, 0)],
+    [new THREE.Vector3(1.5, 2.5, 0), new THREE.Vector3(1.8, 2.8, 0)],
+    [new THREE.Vector3(1.2, 2.8, 0), new THREE.Vector3(1.0, 3.1, 0)],
+    [new THREE.Vector3(1.8, 2.8, 0), new THREE.Vector3(2.0, 3.1, 0)],
+    // Legs
+    [new THREE.Vector3(-0.8, 0, 0), new THREE.Vector3(-0.9, -0.8, 0)],
+    [new THREE.Vector3(-0.9, -0.8, 0), new THREE.Vector3(-0.9, -1.6, 0)],
+    [new THREE.Vector3(-0.4, 0, 0), new THREE.Vector3(-0.4, -0.8, 0)],
+    [new THREE.Vector3(-0.4, -0.8, 0), new THREE.Vector3(-0.35, -1.6, 0)],
+    [new THREE.Vector3(0.4, 0, 0), new THREE.Vector3(0.4, -0.8, 0)],
+    [new THREE.Vector3(0.4, -0.8, 0), new THREE.Vector3(0.35, -1.6, 0)],
+    [new THREE.Vector3(0.9, 0, 0), new THREE.Vector3(1.0, -0.8, 0)],
+    [new THREE.Vector3(1.0, -0.8, 0), new THREE.Vector3(1.0, -1.6, 0)],
+    // Tail
+    [new THREE.Vector3(-1.2, 0.4, 0), new THREE.Vector3(-1.6, 0.6, 0)],
+  ];
+
+  const allPoints: THREE.Vector3[] = [];
+  deerPoints.forEach(([a, b]) => { allPoints.push(a, b); });
+
+  const deerGeo = new THREE.BufferGeometry().setFromPoints(allPoints);
+  const deerMat = new THREE.LineBasicMaterial({ color: 0xE8F4FD, transparent: true, opacity: 0 });
+  const deer = new THREE.LineSegments(deerGeo, deerMat);
+  deer.position.set(-8, 0, 0);
+  deer.scale.setScalar(0.5);
+  group.add(deer);
+
+  // Silver glow particles trailing behind
+  const trailGeo = new THREE.BufferGeometry();
+  const trailPos = new Float32Array(50 * 3);
+  for (let i = 0; i < 50; i++) {
+    trailPos[i * 3] = -8 - Math.random() * 2;
+    trailPos[i * 3 + 1] = (Math.random() - 0.5) * 2;
+    trailPos[i * 3 + 2] = 0;
+  }
+  trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPos, 3));
+  const trailMat = new THREE.PointsMaterial({ color: 0xC0E8FF, size: 0.08, transparent: true, opacity: 0 });
+  const trail = new THREE.Points(trailGeo, trailMat);
+  group.add(trail);
+
+  const light = new THREE.PointLight(0xE8F4FD, 3, 10);
+  group.add(light);
+
+  scene.add(group);
+  const startTime = Date.now();
+  const duration = 2500;
+
+  return (_time: number) => {
+    const elapsed = Date.now() - startTime;
+    const prog = elapsed / duration;
+
+    // Gallop across screen
+    const xPos = -8 + prog * 18;
+    deer.position.x = xPos;
+    light.position.x = xPos;
+    light.position.y = 0;
+    light.position.z = 0;
+
+    // Fade in, hold, fade out
+    const opacity = prog < 0.1 ? prog * 10 : prog > 0.8 ? (1 - prog) * 5 : 1;
+    deerMat.opacity = Math.max(0, Math.min(1, opacity));
+    trailMat.opacity = Math.max(0, Math.min(0.6, opacity * 0.6));
+    light.intensity = Math.max(0, 3 * opacity);
+
+    // Subtle gallop bob
+    deer.position.y = Math.sin(elapsed * 0.015) * 0.3;
+
+    // Trail follows
+    const trailAttr = trailGeo.getAttribute('position');
+    for (let i = 0; i < 50; i++) {
+      trailAttr.setX(i, xPos - Math.random() * 3);
+      trailAttr.setY(i, deer.position.y + (Math.random() - 0.5) * 1.5);
+    }
+    trailAttr.needsUpdate = true;
+
+    if (elapsed > duration) {
+      scene.remove(group);
+      deerGeo.dispose(); deerMat.dispose();
+      trailGeo.dispose(); trailMat.dispose();
       return true;
     }
     return false;
