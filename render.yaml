@@ -10,7 +10,7 @@ services:
     nodeVersion: "20"
 
     buildCommand: >
-      npm install -g pnpm@latest --prefer-offline &&
+      npm install -g pnpm@9 --prefer-offline &&
       pnpm install --frozen-lockfile &&
       pnpm --filter @workspace/harry-potter-calls run build &&
       pnpm --filter @workspace/api-server run build
