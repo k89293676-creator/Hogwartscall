@@ -129,17 +129,22 @@ export default function Room() {
     return () => { if (house) document.body.classList.remove(`house-${house}`); };
   }, [house]);
 
-  // Init media — robust cross-browser/device version with progressive fallbacks
+  // ── Media init — iOS Safari, Android Chrome, desktop (all browsers) ──────
   useEffect(() => {
     let mounted = true;
 
-    // Resolve getUserMedia across modern and legacy browsers
-    const tryGetUserMedia = (constraints: MediaStreamConstraints): Promise<MediaStream> => {
-      // Standard modern API
+    // ── Platform detection ────────────────────────────────────────────────
+    const ua = navigator.userAgent;
+    const isIOS = /iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream;
+    const isIOSSafari = isIOS && /WebKit/i.test(ua) && !/CriOS|FxiOS|Chrome/i.test(ua);
+    const isIOSChrome = isIOS && /CriOS/i.test(ua);
+    const isAndroid = /Android/i.test(ua);
+
+    // ── getUserMedia — modern API + legacy prefixed fallback ──────────────
+    const tryGUM = (constraints: MediaStreamConstraints): Promise<MediaStream> => {
       if (navigator.mediaDevices?.getUserMedia) {
         return navigator.mediaDevices.getUserMedia(constraints);
       }
-      // Legacy prefixed API (old Safari / Firefox / Chrome)
       const legacyGUM =
         (navigator as any).getUserMedia ||
         (navigator as any).webkitGetUserMedia ||
@@ -153,17 +158,34 @@ export default function Room() {
       return Promise.reject(new TypeError('getUserMedia_unsupported'));
     };
 
+    // ── Device-specific permission-denied instructions ────────────────────
+    const permissionDeniedMsg = (): string => {
+      if (isIOSSafari)
+        return 'Camera blocked in Safari. Go to iPhone Settings → Safari → Camera → Allow. Then tap "Try Again".';
+      if (isIOSChrome)
+        return 'Camera blocked in Chrome. Go to iPhone Settings → Chrome → Camera → Allow. Then tap "Try Again".';
+      if (isIOS)
+        return 'Camera blocked. Open iPhone Settings → find your browser → Camera → Allow. Then tap "Try Again".';
+      if (isAndroid)
+        return 'Camera blocked. Tap the 🎥 or 🔒 icon in Chrome\'s address bar → Allow. Then tap "Try Again".';
+      return 'Camera or microphone access was denied. Click the 🔒 lock icon in your address bar, allow camera & microphone, then tap "Try Again".';
+    };
+
     const initMedia = async () => {
-      // Guard: API completely absent (plain HTTP on non-localhost, very old browser)
+      // ── Guard: secure context / API missing ──────────────────────────
       const hasGUM =
         navigator.mediaDevices?.getUserMedia ||
         (navigator as any).getUserMedia ||
         (navigator as any).webkitGetUserMedia ||
         (navigator as any).mozGetUserMedia;
       if (!hasGUM) {
+        const isHTTP = location.protocol !== 'https:' && location.hostname !== 'localhost';
         setMediaError({
-          message:
-            'Camera access is not available. This page must be opened over HTTPS, or your browser is too old. Please try Chrome or Firefox.',
+          message: isHTTP
+            ? 'Camera requires a secure connection (HTTPS). Please use the https:// link to open this app.'
+            : isIOS
+              ? 'Camera is not available. Please use Safari 14.1+ or update your browser.'
+              : 'Camera is not supported. Please update to the latest Chrome or Firefox.',
           canRetry: false,
         });
         return;
@@ -171,15 +193,46 @@ export default function Room() {
 
       setMediaError(null);
 
-      // Progressive constraint ladder — stop at first success
+      // ── Pre-flight: Permissions API (Chrome/Android; not available on iOS Safari) ──
+      // Lets us show guidance immediately without a failing getUserMedia call
+      try {
+        const [camPerm, micPerm] = await Promise.allSettled([
+          navigator.permissions?.query({ name: 'camera' as PermissionName }),
+          navigator.permissions?.query({ name: 'microphone' as PermissionName }),
+        ]);
+        const camState = camPerm.status === 'fulfilled' ? camPerm.value?.state : undefined;
+        const micState = micPerm.status === 'fulfilled' ? micPerm.value?.state : undefined;
+        if (camState === 'denied' || micState === 'denied') {
+          if (!mounted) return;
+          setMediaError({ message: permissionDeniedMsg(), canRetry: true });
+          return;
+        }
+        // Listen for live permission-state changes (user grants access from browser UI)
+        const camResult = camPerm.status === 'fulfilled' ? camPerm.value : null;
+        if (camResult) {
+          const onPermChange = () => {
+            if (camResult.state === 'granted' && mounted) setMediaRetryKey(k => k + 1);
+          };
+          camResult.addEventListener('change', onPermChange);
+          // best-effort cleanup (not all browsers support removeEventListener on PermissionStatus)
+        }
+      } catch { /* Permissions API unavailable — continue to getUserMedia */ }
+
+      // ── Progressive constraint ladder ─────────────────────────────────
+      // Key iOS fix: use { ideal: 'user' } not exact 'user' — exact throws OverconstrainedError
+      //              on many iPhones and older iPads.
+      // Key iOS fix: NotReadableError on HD constraints often succeeds at lower res —
+      //              keep going down the ladder (only bail on desktop).
       const constraintLadder: MediaStreamConstraints[] = [
-        // 1. Ideal HD, front-facing on mobile
-        { video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: true },
-        // 2. Front-facing, no size preference
-        { video: { facingMode: 'user' }, audio: true },
-        // 3. Any video + audio
+        // 1. HD, front-facing (ideal — not exact, iOS-safe)
+        { video: { facingMode: { ideal: 'user' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: true },
+        // 2. Front-facing, no resolution requirement
+        { video: { facingMode: { ideal: 'user' } }, audio: true },
+        // 3. Any video + audio (no facing mode — works on all desktop/mobile cameras)
         { video: true, audio: true },
-        // 4. Audio-only (camera unavailable / denied)
+        // 4. Low-res video — older/low-memory Android devices
+        { video: { width: { max: 640 }, height: { max: 480 } }, audio: true },
+        // 5. Audio-only — camera unavailable or denied; user can still participate
         { video: false, audio: true },
       ];
 
@@ -188,18 +241,17 @@ export default function Room() {
 
       for (const constraints of constraintLadder) {
         try {
-          stream = await tryGetUserMedia(constraints);
+          stream = await tryGUM(constraints);
           break;
         } catch (err) {
           lastErr = err;
           const name = (err as DOMException)?.name;
-          // Permission denied — no point trying softer constraints
           if (name === 'NotAllowedError' || name === 'PermissionDeniedError') break;
-          // API unsupported — bail immediately
           if (err instanceof TypeError) break;
-          // Device busy — softer constraints won't help
-          if (name === 'NotReadableError' || name === 'TrackStartError') break;
-          // NotFoundError / OverconstrainedError — try next (simpler) constraints
+          // On iOS: NotReadableError with HD often resolves with simpler constraints — keep going.
+          // On desktop: NotReadableError means device is truly busy — stop.
+          if ((name === 'NotReadableError' || name === 'TrackStartError') && !isIOS) break;
+          // OverconstrainedError / NotFoundError / iOS-NotReadableError → try next step
         }
       }
 
@@ -212,30 +264,46 @@ export default function Room() {
         let canRetry = true;
 
         if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
-          message =
-            'Camera or microphone access was denied. Click the 🔒 lock icon in your browser\'s address bar, allow camera & microphone, then tap "Try Again".';
+          message = permissionDeniedMsg();
         } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
-          message =
-            'No camera or microphone was found. Please connect a device and tap "Try Again".';
+          message = isIOS
+            ? 'No camera or microphone found. Ensure your device has a front camera and try again.'
+            : 'No camera or microphone found. Please connect a device and tap "Try Again".';
         } else if (name === 'NotReadableError' || name === 'TrackStartError') {
-          message =
-            'Your camera or microphone is already in use by another app. Close that app and tap "Try Again".';
+          message = isIOS
+            ? 'Your camera is in use by another app (e.g. FaceTime or Camera). Close that app and tap "Try Again".'
+            : 'Your camera or microphone is in use by another app. Close that app and tap "Try Again".';
         } else if (name === 'OverconstrainedError' || name === 'ConstraintNotSatisfiedError') {
-          message =
-            'Your camera does not support the required settings. Please try a different browser or device.';
+          message = 'Your camera does not support the required video settings. Please try a different browser or device.';
           canRetry = false;
         } else if (err instanceof TypeError || (err as DOMException)?.message === 'getUserMedia_unsupported') {
-          message =
-            'Your browser does not support camera access. Please use an up-to-date version of Chrome, Firefox, or Safari over HTTPS.';
+          message = isIOS
+            ? 'Camera access requires Safari 14.1+ or an updated browser on iOS over HTTPS.'
+            : 'Camera access is not supported. Please update to the latest Chrome, Firefox, or Safari over HTTPS.';
           canRetry = false;
         } else {
-          message = `Could not access camera or microphone: ${(err as DOMException)?.message || 'Unknown error'}. Please check your browser permissions and tap "Try Again".`;
+          message = `Could not access camera: ${(err as DOMException)?.message || 'Unknown error'}. Please check your browser permissions and tap "Try Again".`;
         }
 
         console.error('[media]', name, err);
         setMediaError({ message, canRetry });
         return;
       }
+
+      // ── Track-ended listener — iOS phone call / screen lock / background ──
+      // When iOS suspends the camera, tracks fire 'ended' silently. We surface
+      // a retry prompt so the user knows what happened.
+      stream.getTracks().forEach(track => {
+        track.addEventListener('ended', () => {
+          if (!mounted) return;
+          setMediaError({
+            message: isIOS
+              ? 'Camera was interrupted (phone call or screen lock). Tap "Try Again" to reconnect.'
+              : 'Camera or microphone was disconnected. Tap "Try Again" to reconnect.',
+            canRetry: true,
+          });
+        }, { once: true });
+      });
 
       setLocalStream(stream);
       socket.emit('join-room', roomId);
@@ -605,17 +673,18 @@ export default function Room() {
         <main className={`flex-1 p-2 md:p-4 flex flex-col md:flex-row gap-2 md:gap-4 relative z-0 overflow-hidden ${isMobile ? 'pb-[68px]' : ''}`}>
           {/* Local video */}
           <div className="relative flex-1 min-h-0">
-            {!localStream && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center z-10 p-4 text-center">
+            {/* Show overlay when stream is absent OR when a track-ended error fires mid-call */}
+            {(!localStream || mediaError) && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center z-10 p-4 text-center bg-black/60 rounded-xl">
                 {mediaError ? (
-                  <div className="space-y-3 max-w-xs">
-                    <div className="text-4xl">🔒</div>
+                  <div className="space-y-3 max-w-[280px]">
+                    <div className="text-4xl">{mediaError.canRetry ? '📷' : '⚠️'}</div>
                     <p className="font-cinzel text-xs leading-relaxed" style={{ color: '#f87171' }}>
                       {mediaError.message}
                     </p>
                     {mediaError.canRetry && (
                       <button
-                        onClick={() => setMediaRetryKey(k => k + 1)}
+                        onClick={() => { setMediaError(null); setMediaRetryKey(k => k + 1); }}
                         className="font-cinzel text-xs px-4 py-2 rounded-full border border-primary/50 text-primary hover:bg-primary/10 transition-colors"
                       >
                         🪄 Try Again
