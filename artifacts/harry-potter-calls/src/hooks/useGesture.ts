@@ -13,25 +13,25 @@ export function useGesture(stream: MediaStream | null): UseGestureReturn {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const handsRef = useRef<any>(null);
   const cameraRef = useRef<any>(null);
+  const gestureHoldRef = useRef<string | null>(null);
+  const gestureHoldCountRef = useRef<number>(0);
   const gestureTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const HOLD_FRAMES = 4; // require gesture held for N frames to reduce false positives
 
   const detectGesture = (marks: any[]): string | null => {
-    // Y-coordinate increases downward, so tip.y < pip.y means finger is pointing up (extended)
-    const isUp = (tip: number, pip: number) => marks[tip].y < marks[pip].y;
+    const isUp = (tip: number, pip: number) => marks[tip].y < marks[pip].y - 0.02;
 
-    const thumbExt = marks[4].x < marks[3].x || marks[4].x > marks[3].x
-      ? Math.abs(marks[4].x - marks[2].x) > 0.04
-      : isUp(4, 3);
+    const thumbExt = Math.abs(marks[4].x - marks[2].x) > 0.04;
     const indexExt  = isUp(8,  6);
     const middleExt = isUp(12, 10);
     const ringExt   = isUp(16, 14);
     const pinkyExt  = isUp(20, 18);
 
-    // Lumos – open palm: all fingers extended
-    if (thumbExt && indexExt && middleExt && ringExt && pinkyExt) return 'lumos';
+    // Lumos – open palm: all 4 main fingers extended
+    if (indexExt && middleExt && ringExt && pinkyExt) return 'lumos';
 
     // Incendio – fist: no fingers extended
-    if (!indexExt && !middleExt && !ringExt && !pinkyExt) return 'incendio';
+    if (!indexExt && !middleExt && !ringExt && !pinkyExt && !thumbExt) return 'incendio';
 
     // Patronus – peace / V sign: index + middle only
     if (!thumbExt && indexExt && middleExt && !ringExt && !pinkyExt) return 'patronus';
@@ -39,14 +39,14 @@ export function useGesture(stream: MediaStream | null): UseGestureReturn {
     // Expelliarmus – pointing: only index extended
     if (!thumbExt && indexExt && !middleExt && !ringExt && !pinkyExt) return 'expelliarmus';
 
-    // Wingardium Leviosa – L-shape: thumb + index, others curled
-    if (thumbExt && indexExt && !middleExt && !ringExt && !pinkyExt) return 'wingardium';
-
     // Stupefy – three fingers: index + middle + ring
     if (!thumbExt && indexExt && middleExt && ringExt && !pinkyExt) return 'stupefy';
 
-    // Protego – rock/metal horns: index + pinky (devil horns)
+    // Protego – rock horns: index + pinky (devil horns)
     if (!thumbExt && indexExt && !middleExt && !ringExt && pinkyExt) return 'protego';
+
+    // Wingardium Leviosa – L-shape: thumb + index, others curled
+    if (thumbExt && indexExt && !middleExt && !ringExt && !pinkyExt) return 'wingardium';
 
     // Accio – shaka / hang-loose: thumb + pinky only
     if (thumbExt && !indexExt && !middleExt && !ringExt && pinkyExt) return 'accio';
@@ -84,8 +84,8 @@ export function useGesture(stream: MediaStream | null): UseGestureReturn {
         hands.setOptions({
           maxNumHands: 1,
           modelComplexity: 1,
-          minDetectionConfidence: 0.7,
-          minTrackingConfidence: 0.5,
+          minDetectionConfidence: 0.6,
+          minTrackingConfidence: 0.4,
         });
 
         hands.onResults((results: Results) => {
@@ -97,26 +97,39 @@ export function useGesture(stream: MediaStream | null): UseGestureReturn {
             const detected = detectGesture(marks);
 
             if (detected) {
-              if (gestureTimeoutRef.current) {
-                clearTimeout(gestureTimeoutRef.current);
-                gestureTimeoutRef.current = null;
+              if (detected === gestureHoldRef.current) {
+                gestureHoldCountRef.current++;
+              } else {
+                gestureHoldRef.current = detected;
+                gestureHoldCountRef.current = 1;
               }
-              setCurrentGesture(detected);
+
+              if (gestureHoldCountRef.current >= HOLD_FRAMES) {
+                if (gestureTimeoutRef.current) {
+                  clearTimeout(gestureTimeoutRef.current);
+                  gestureTimeoutRef.current = null;
+                }
+                setCurrentGesture(detected);
+              }
             } else {
+              gestureHoldRef.current = null;
+              gestureHoldCountRef.current = 0;
               if (!gestureTimeoutRef.current) {
                 gestureTimeoutRef.current = setTimeout(() => {
                   setCurrentGesture(null);
                   gestureTimeoutRef.current = null;
-                }, 300);
+                }, 400);
               }
             }
           } else {
             setLandmarks(null);
+            gestureHoldRef.current = null;
+            gestureHoldCountRef.current = 0;
             if (gestureTimeoutRef.current) clearTimeout(gestureTimeoutRef.current);
             gestureTimeoutRef.current = setTimeout(() => {
               setCurrentGesture(null);
               gestureTimeoutRef.current = null;
-            }, 500);
+            }, 600);
           }
         });
 
