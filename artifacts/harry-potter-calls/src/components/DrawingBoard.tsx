@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { LuX, LuTrash2, LuEraser, LuUndo, LuStamp } from 'react-icons/lu';
 

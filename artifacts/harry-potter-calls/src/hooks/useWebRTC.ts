@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Socket } from 'socket.io-client';
 
 export type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'disconnected';
