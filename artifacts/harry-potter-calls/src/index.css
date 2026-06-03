@@ -1,0 +1,123 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Cinzel:wght@400;600;700&display=swap');
+@import "tailwindcss";
+@import "tw-animate-css";
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-card-border: hsl(var(--card-border));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-popover-border: hsl(var(--popover-border));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-primary-border: var(--primary-border);
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-secondary-border: var(--secondary-border);
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-muted-border: var(--muted-border);
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-accent-border: var(--accent-border);
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-destructive-border: var(--destructive-border);
+
+  --font-sans: 'Cinzel', serif;
+  --font-serif: 'Cinzel Decorative', cursive;
+  --font-mono: Menlo, monospace;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root, .dark {
+  --background: 240 20% 5%;
+  --foreground: 45 40% 88%;
+  --card: 240 15% 10%;
+  --card-foreground: 45 40% 88%;
+  --card-border: 43 60% 30%;
+  --popover: 240 15% 10%;
+  --popover-foreground: 45 40% 88%;
+  --popover-border: 43 60% 30%;
+  --primary: 43 90% 55%;
+  --primary-foreground: 240 20% 5%;
+  --secondary: 0 72% 40%;
+  --secondary-foreground: 45 40% 88%;
+  --muted: 270 20% 15%;
+  --muted-foreground: 45 20% 65%;
+  --accent: 220 70% 45%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 72% 40%;
+  --destructive-foreground: 45 40% 88%;
+  --border: 43 60% 30%;
+  --input: 240 15% 8%;
+  --ring: 43 90% 55%;
+
+  --sidebar: 240 15% 10%;
+  --sidebar-foreground: 45 40% 88%;
+  --sidebar-border: 43 60% 30%;
+  --sidebar-primary: 43 90% 55%;
+  --sidebar-primary-foreground: 240 20% 5%;
+  --sidebar-accent: 220 70% 45%;
+  --sidebar-accent-foreground: 0 0% 100%;
+  --sidebar-ring: 43 90% 55%;
+
+  --chart-1: 43 90% 55%;
+  --chart-2: 0 72% 40%;
+  --chart-3: 220 70% 45%;
+  --chart-4: 270 20% 15%;
+  --chart-5: 45 40% 88%;
+
+  --radius: 0.5rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Cinzel', serif;
+    overflow-x: hidden;
+  }
+}
+
+.font-harry { font-family: 'Cinzel Decorative', cursive; }
+.font-cinzel { font-family: 'Cinzel', serif; }
+
+/* Magic glow effects */
+.glow-gold { box-shadow: 0 0 20px rgba(212, 175, 55, 0.4), 0 0 40px rgba(212, 175, 55, 0.2); }
+.glow-gold-text { text-shadow: 0 0 20px rgba(212, 175, 55, 0.6); }
+.magic-border { border: 1px solid rgba(212, 175, 55, 0.4); box-shadow: inset 0 0 15px rgba(212, 175, 55, 0.05), 0 0 15px rgba(212, 175, 55, 0.15); }
+
+/* Parchment card */
+.parchment { background: linear-gradient(135deg, rgba(30,20,10,0.95) 0%, rgba(20,15,5,0.98) 100%); border: 1px solid rgba(212,175,55,0.3); }
+
+/* Spell cooldown animation */
+@keyframes spell-cooldown { from { stroke-dashoffset: 0; } to { stroke-dashoffset: 126; } }
+@keyframes spell-flash { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+@keyframes float { 0%,100% { transform: translateY(0px); } 50% { transform: translateY(-10px); } }
+@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+
+/* Custom wand cursor */
+* { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cline x1='4' y1='28' x2='28' y2='4' stroke='%23D4AF37' stroke-width='3' stroke-linecap='round'/%3E%3Ccircle cx='28' cy='4' r='3' fill='%23FFD700'/%3E%3C/svg%3E") 4 28, auto; }
