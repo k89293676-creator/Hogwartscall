@@ -244,11 +244,21 @@ export default function HomePage() {
 
           {/* Room ID */}
           <div className="space-y-2">
-            <label className="font-cinzel text-primary text-xs uppercase tracking-widest">Room ID (optional)</label>
+            <label className="font-cinzel text-primary text-xs uppercase tracking-widest">Join a Room</label>
+            <p className="font-cinzel text-[10px] text-muted-foreground/70 -mt-1">Paste a room code or invite link — or leave blank to start a new room</p>
             <Input
               value={roomId}
-              onChange={e => setRoomId(e.target.value)}
-              placeholder="Leave blank to generate..."
+              onChange={e => {
+                const val = e.target.value.trim();
+                // If user pastes a full URL, extract just the room ID from the path
+                try {
+                  const url = new URL(val);
+                  const match = url.pathname.match(/\/room\/([^/?#]+)/);
+                  if (match) { setRoomId(match[1]); return; }
+                } catch { /* not a URL, use raw value */ }
+                setRoomId(val);
+              }}
+              placeholder="Room code or invite link..."
               className="bg-black/30 border-primary/30 font-cinzel text-sm focus:border-primary/70 placeholder:text-muted-foreground/50"
             />
           </div>
