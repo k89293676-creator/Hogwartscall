@@ -33,15 +33,18 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
 
-// Serve the built frontend in production
-if (process.env.NODE_ENV === "production") {
+// Serve the built frontend in all non-development environments.
+// Using !== "development" (not === "production") so it works even when
+// NODE_ENV is not explicitly set (e.g. some Render configurations).
+if (process.env.NODE_ENV !== "development") {
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
   const staticDir = path.resolve(__dirname, "../../harry-potter-calls/dist/public");
 
   app.use(express.static(staticDir));
 
-  // SPA fallback – all non-API routes serve index.html
-  app.get("*", (_req, res) => {
+  // SPA fallback – use app.use (not app.get("*")) for Express 5 compatibility.
+  // In Express 5, bare "*" is no longer a catch-all wildcard.
+  app.use((_req, res) => {
     res.sendFile(path.join(staticDir, "index.html"));
   });
 
