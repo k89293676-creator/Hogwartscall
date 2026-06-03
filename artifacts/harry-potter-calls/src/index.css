@@ -402,6 +402,105 @@
   70%     { transform: translateX(-2px); }
 }
 
+/* ═══════════════════════════════════════════════════════
+   CINEMATIC SPELL & MAGIC ANIMATIONS
+═══════════════════════════════════════════════════════ */
+
+@keyframes spellScreenFlash {
+  0%   { opacity: 0; transform: scale(0.95); }
+  15%  { opacity: 1; transform: scale(1.02); }
+  60%  { opacity: 0.7; }
+  100% { opacity: 0; transform: scale(1.05); }
+}
+@keyframes spellStreakH {
+  0%   { transform: scaleX(0) translateY(-50%); opacity: 0; }
+  30%  { opacity: 1; }
+  100% { transform: scaleX(1) translateY(-50%); opacity: 0; }
+}
+@keyframes runicRingExpand {
+  0%   { transform: scale(0.2) rotate(-30deg); opacity: 0; }
+  40%  { opacity: 0.9; }
+  70%  { transform: scale(1.05) rotate(5deg); opacity: 0.8; }
+  100% { transform: scale(1) rotate(0deg); opacity: 0.6; }
+}
+@keyframes letterExit {
+  from { opacity: 1; transform: scale(1) rotate(0deg); }
+  to   { opacity: 0; transform: translate(var(--lx,0), var(--ly,40px)) rotate(var(--lr,10deg)) scale(0.4); }
+}
+@keyframes dementorDrift {
+  0%   { transform: translate(0,0) rotate(-2deg) scaleX(1); }
+  25%  { transform: translate(8px,-12px) rotate(1.5deg) scaleX(0.97); }
+  50%  { transform: translate(-5px,-6px) rotate(-1deg) scaleX(1.02); }
+  75%  { transform: translate(10px,4px) rotate(2deg) scaleX(0.98); }
+  100% { transform: translate(0,0) rotate(-2deg) scaleX(1); }
+}
+@keyframes lightningFlash {
+  0%,100% { opacity: 0; }
+  5%      { opacity: 0.9; }
+  10%     { opacity: 0; }
+  15%     { opacity: 0.6; }
+  20%     { opacity: 0; }
+}
+@keyframes patronusWave {
+  0%   { filter: brightness(1) hue-rotate(0deg); }
+  25%  { filter: brightness(1.4) hue-rotate(15deg); }
+  50%  { filter: brightness(1) hue-rotate(-10deg); }
+  75%  { filter: brightness(1.3) hue-rotate(10deg); }
+  100% { filter: brightness(1) hue-rotate(0deg); }
+}
+@keyframes portalSpin {
+  0%   { transform: rotate(0deg) scale(1); opacity: 0.8; }
+  50%  { transform: rotate(180deg) scale(1.1); opacity: 1; }
+  100% { transform: rotate(360deg) scale(1); opacity: 0.8; }
+}
+@keyframes flooGreenBurst {
+  0%   { transform: scaleY(0.3) scaleX(1.2); filter: hue-rotate(0deg) brightness(1); opacity: 0.6; }
+  20%  { transform: scaleY(1.3) scaleX(0.85); filter: hue-rotate(30deg) brightness(1.5); opacity: 1; }
+  50%  { transform: scaleY(0.9) scaleX(1.05); filter: hue-rotate(-15deg) brightness(1.2); opacity: 0.9; }
+  80%  { transform: scaleY(1.15) scaleX(0.92); filter: hue-rotate(10deg) brightness(1.1); opacity: 0.8; }
+  100% { transform: scaleY(0.3) scaleX(1.2); filter: hue-rotate(0deg) brightness(1); opacity: 0; }
+}
+@keyframes orbPulse {
+  0%,100% { transform: scale(1);    box-shadow: 0 0 15px currentColor, 0 0 30px currentColor; }
+  50%      { transform: scale(1.15); box-shadow: 0 0 25px currentColor, 0 0 60px currentColor, 0 0 90px currentColor; }
+}
+@keyframes runeAppear {
+  0%   { opacity: 0; transform: scale(0.5) rotate(-20deg); }
+  60%  { opacity: 1; transform: scale(1.15) rotate(5deg); }
+  100% { opacity: 0.75; transform: scale(1) rotate(0deg); }
+}
+@keyframes crestReveal {
+  0%   { transform: scale(0) rotate(-45deg); opacity: 0; filter: blur(8px); }
+  60%  { transform: scale(1.1) rotate(3deg); opacity: 1; filter: blur(0); }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; filter: blur(0); }
+}
+@keyframes oilSheen {
+  0%,100% { background-position: -200% center; opacity: 0.12; }
+  50%      { background-position: 200% center;  opacity: 0.22; }
+}
+@keyframes spellHitShake {
+  0%,100% { transform: translate(0,0) rotate(0deg); }
+  10%     { transform: translate(-5px, 2px) rotate(-1.5deg); }
+  20%     { transform: translate(5px,-2px) rotate(1.5deg); }
+  30%     { transform: translate(-4px, 3px) rotate(-1deg); }
+  40%     { transform: translate(4px,-1px) rotate(1deg); }
+  50%     { transform: translate(-3px, 1px) rotate(-0.5deg); }
+  60%     { transform: translate(3px,-1px) rotate(0.5deg); }
+  70%     { transform: translate(-2px, 0px); }
+  80%     { transform: translate(2px, 0px); }
+}
+@keyframes stainedRay {
+  0%,100% { opacity: 0.18; transform: skewX(-8deg) scaleX(1); }
+  50%      { opacity: 0.35; transform: skewX(-6deg) scaleX(1.1); }
+}
+.magic-border-house {
+  animation: magicBorderBreath 4s ease-in-out infinite, houseGlow 8s ease-in-out infinite;
+}
+@keyframes houseGlow {
+  0%,100% { box-shadow: 0 0 20px var(--house-primary, rgba(212,175,55,0.4)), 0 0 40px rgba(212,175,55,0.2); }
+  50%      { box-shadow: 0 0 35px var(--house-primary, rgba(212,175,55,0.6)), 0 0 70px rgba(212,175,55,0.3); }
+}
+
 /* === CROSS-BROWSER UTILITIES === */
 
 /* Hide scrollbars globally (Chrome/Safari/Edge) while keeping scroll functionality */

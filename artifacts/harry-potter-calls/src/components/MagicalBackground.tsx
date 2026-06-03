@@ -347,6 +347,45 @@ export function MagicalBackground({ quality: qualityProp = 'cinematic' }: Magica
         }
       }
 
+      // ─── DEMENTORS ────────────────────────────────────────────
+      type DementorData = { group: THREE.Group; t: number; speed: number; floatSpeed: number; rotSpeed: number };
+      const dementors: DementorData[] = [];
+      if (!isBalanced) {
+        for (let i = 0; i < 4; i++) {
+          const dg = new THREE.Group();
+          const bodyMat = new THREE.MeshBasicMaterial({ color: 0x080810, transparent: true, opacity: 0.75, side: THREE.DoubleSide });
+          const robe = new THREE.Mesh(new THREE.ConeGeometry(0.35, 1.4, 8), bodyMat);
+          dg.add(robe);
+          const hood = new THREE.Mesh(new THREE.SphereGeometry(0.25, 8, 8), bodyMat);
+          hood.position.y = 0.85; dg.add(hood);
+          for (let j = 0; j < 6; j++) {
+            const rag = new THREE.Mesh(
+              new THREE.PlaneGeometry(0.18 + Math.random() * 0.22, 0.5 + Math.random() * 0.4),
+              new THREE.MeshBasicMaterial({ color: 0x060608, transparent: true, opacity: 0.6, side: THREE.DoubleSide })
+            );
+            rag.position.set((Math.random()-0.5)*0.55, -0.55+Math.random()*0.2, (Math.random()-0.5)*0.35);
+            rag.rotation.z = (Math.random()-0.5)*0.8;
+            dg.add(rag);
+          }
+          const aura = new THREE.PointLight(0x1A0A30, 0.3, 4);
+          aura.position.y = 0.3; dg.add(aura);
+          dg.position.set(-10+i*5+Math.random()*3, 3+Math.random()*4, -6-i*2-Math.random()*3);
+          dg.scale.set(0.7+Math.random()*0.5, 0.7+Math.random()*0.5, 0.7+Math.random()*0.5);
+          scene.add(dg);
+          dementors.push({ group: dg, t: Math.random()*100, speed: 0.15+Math.random()*0.15, floatSpeed: 0.4+Math.random()*0.3, rotSpeed: (Math.random()-0.5)*0.008 });
+        }
+      }
+
+      // ─── LIGHTNING FLASH ──────────────────────────────────────
+      let lightningMesh: THREE.Mesh | null = null;
+      let lastLightning = Date.now() + 5000 + Math.random() * 8000;
+      if (!isBalanced) {
+        const lMat = new THREE.MeshBasicMaterial({ color: 0xEEEEFF, transparent: true, opacity: 0, side: THREE.DoubleSide });
+        lightningMesh = new THREE.Mesh(new THREE.PlaneGeometry(40, 30), lMat);
+        lightningMesh.position.z = -20;
+        scene.add(lightningMesh);
+      }
+
       // ─── SHOOTING STARS ───────────────────────────────────────────
       const shootingStars: { line: THREE.Line; startTime: number; duration: number }[] = [];
       let lastShootingStarTime = Date.now() + 2000;
@@ -407,6 +446,26 @@ export function MagicalBackground({ quality: qualityProp = 'cinematic' }: Magica
           owl.leftWing.rotation.x = Math.sin(elapsedTime * owl.wingSpeed) * 0.6;
           owl.rightWing.rotation.x = -Math.sin(elapsedTime * owl.wingSpeed) * 0.6;
         });
+
+        // Dementor movement
+        dementors.forEach(d => {
+          d.t += 0.004 * d.speed;
+          d.group.position.x = Math.sin(d.t) * 9 + Math.sin(d.t * 0.3) * 4;
+          d.group.position.y = 3 + Math.sin(d.t * d.floatSpeed) * 2.5;
+          d.group.rotation.y += d.rotSpeed;
+          d.group.rotation.z = Math.sin(d.t * 0.8) * 0.12;
+        });
+
+        // Lightning
+        const now2 = Date.now();
+        if (lightningMesh && now2 > lastLightning) {
+          const lm = lightningMesh.material as THREE.MeshBasicMaterial;
+          const age = now2 - lastLightning;
+          if (age < 80) lm.opacity = 0.55;
+          else if (age < 140) lm.opacity = 0;
+          else if (age < 200) lm.opacity = 0.35;
+          else { lm.opacity = 0; lastLightning = now2 + 6000 + Math.random() * 12000; }
+        }
 
         const now = Date.now();
         if (now - lastShootingStarTime > 4000 + Math.random() * 4000) {
