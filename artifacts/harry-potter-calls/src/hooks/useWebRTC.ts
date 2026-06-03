@@ -16,7 +16,11 @@ const ICE_SERVERS = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' },
+    {
+      urls: (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_TURN_URL) || 'turn:openrelay.metered.ca:80',
+      username: (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_TURN_USER) || 'openrelayproject',
+      credential: (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_TURN_CRED) || 'openrelayproject',
+    },
   ]
 };
 
@@ -30,10 +34,14 @@ export function useWebRTC(socket: Socket, roomId: string): UseWebRTCReturn {
   const localStreamRef = useRef<MediaStream | null>(null);
   const peerSocketId = useRef<string | null>(null);
 
+  // Stable function refs to avoid re-registering socket listeners
+  const closePeerRef = useRef<() => void>(() => {});
+  const buildPeerConnectionRef = useRef<(targetId: string) => RTCPeerConnection>(() => { throw new Error(); });
+  const initiateCallRef = useRef<(targetId: string) => Promise<void>>(async () => {});
+
   const setLocalStream = useCallback((stream: MediaStream) => {
     setLocalStreamState(stream);
     localStreamRef.current = stream;
-
     if (peerConnection.current) {
       const senders = peerConnection.current.getSenders();
       stream.getTracks().forEach(track => {
@@ -44,87 +52,82 @@ export function useWebRTC(socket: Socket, roomId: string): UseWebRTCReturn {
     }
   }, []);
 
-  const closePeer = useCallback(() => {
-    if (peerConnection.current) {
-      peerConnection.current.close();
-      peerConnection.current = null;
-    }
-    peerSocketId.current = null;
-  }, []);
+  // Keep refs up to date without re-creating effects
+  useEffect(() => {
+    closePeerRef.current = () => {
+      if (peerConnection.current) {
+        peerConnection.current.close();
+        peerConnection.current = null;
+      }
+      peerSocketId.current = null;
+    };
 
-  const buildPeerConnection = useCallback((targetId: string): RTCPeerConnection => {
-    closePeer();
-    peerSocketId.current = targetId;
+    buildPeerConnectionRef.current = (targetId: string): RTCPeerConnection => {
+      closePeerRef.current();
+      peerSocketId.current = targetId;
+      const pc = new RTCPeerConnection(ICE_SERVERS);
+      peerConnection.current = pc;
 
-    const pc = new RTCPeerConnection(ICE_SERVERS);
-    peerConnection.current = pc;
+      pc.onicecandidate = (event) => {
+        if (event.candidate && peerSocketId.current) {
+          socket.emit('ice-candidate', { to: peerSocketId.current, candidate: event.candidate });
+        }
+      };
 
-    pc.onicecandidate = (event) => {
-      if (event.candidate && peerSocketId.current) {
-        socket.emit('ice-candidate', { to: peerSocketId.current, candidate: event.candidate });
+      pc.ontrack = (event) => {
+        const stream = event.streams[0] ?? new MediaStream([event.track]);
+        setRemoteStream(stream);
+      };
+
+      pc.onconnectionstatechange = () => {
+        switch (pc.connectionState) {
+          case 'connecting': setConnectionStatus('connecting'); break;
+          case 'connected': setConnectionStatus('connected'); break;
+          case 'disconnected':
+          case 'failed':
+          case 'closed': setConnectionStatus('disconnected'); break;
+        }
+      };
+
+      pc.ondatachannel = (event) => { setDataChannel(event.channel); };
+
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(track => {
+          pc.addTrack(track, localStreamRef.current!);
+        });
+      }
+
+      return pc;
+    };
+
+    initiateCallRef.current = async (targetId: string) => {
+      const pc = buildPeerConnectionRef.current(targetId);
+      setConnectionStatus('connecting');
+      const dc = pc.createDataChannel('drawing');
+      setDataChannel(dc);
+      try {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        socket.emit('offer', { to: targetId, offer });
+      } catch (err) {
+        console.error('Error creating offer:', err);
       }
     };
-
-    pc.ontrack = (event) => {
-      const stream = event.streams[0] ?? new MediaStream([event.track]);
-      setRemoteStream(stream);
-    };
-
-    pc.onconnectionstatechange = () => {
-      switch (pc.connectionState) {
-        case 'connecting': setConnectionStatus('connecting'); break;
-        case 'connected': setConnectionStatus('connected'); break;
-        case 'disconnected':
-        case 'failed':
-        case 'closed': setConnectionStatus('disconnected'); break;
-      }
-    };
-
-    pc.ondatachannel = (event) => {
-      setDataChannel(event.channel);
-    };
-
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(track => {
-        pc.addTrack(track, localStreamRef.current!);
-      });
-    }
-
-    return pc;
-  }, [socket, closePeer]);
-
-  const initiateCall = useCallback(async (targetId: string) => {
-    const pc = buildPeerConnection(targetId);
-    setConnectionStatus('connecting');
-
-    const dc = pc.createDataChannel('drawing');
-    setDataChannel(dc);
-
-    try {
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      socket.emit('offer', { to: targetId, offer });
-    } catch (err) {
-      console.error('Error creating offer:', err);
-    }
-  }, [buildPeerConnection, socket]);
+  });
 
   useEffect(() => {
-    socket.on('room-joined', (users: string[]) => {
+    const onRoomJoined = (users: string[]) => {
       const others = users.filter(id => id !== socket.id);
-      if (others.length > 0) {
-        initiateCall(others[0]);
-      }
-    });
+      if (others.length > 0) initiateCallRef.current(others[0]);
+    };
 
-    socket.on('user-joined', (userId: string) => {
+    const onUserJoined = (userId: string) => {
       peerSocketId.current = userId;
-    });
+    };
 
-    socket.on('offer', async ({ from, offer }: { from: string; offer: RTCSessionDescriptionInit }) => {
-      const pc = buildPeerConnection(from);
+    const onOffer = async ({ from, offer }: { from: string; offer: RTCSessionDescriptionInit }) => {
+      const pc = buildPeerConnectionRef.current(from);
       setConnectionStatus('connecting');
-
       try {
         await pc.setRemoteDescription(new RTCSessionDescription(offer));
         const answer = await pc.createAnswer();
@@ -133,9 +136,9 @@ export function useWebRTC(socket: Socket, roomId: string): UseWebRTCReturn {
       } catch (err) {
         console.error('Error handling offer:', err);
       }
-    });
+    };
 
-    socket.on('answer', async ({ answer }: { answer: RTCSessionDescriptionInit }) => {
+    const onAnswer = async ({ answer }: { answer: RTCSessionDescriptionInit }) => {
       if (peerConnection.current) {
         try {
           await peerConnection.current.setRemoteDescription(new RTCSessionDescription(answer));
@@ -143,9 +146,9 @@ export function useWebRTC(socket: Socket, roomId: string): UseWebRTCReturn {
           console.error('Error setting remote description:', err);
         }
       }
-    });
+    };
 
-    socket.on('ice-candidate', async ({ candidate }: { candidate: RTCIceCandidateInit }) => {
+    const onIceCandidate = async ({ candidate }: { candidate: RTCIceCandidateInit }) => {
       if (peerConnection.current) {
         try {
           await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
@@ -153,23 +156,30 @@ export function useWebRTC(socket: Socket, roomId: string): UseWebRTCReturn {
           console.error('Error adding ICE candidate:', err);
         }
       }
-    });
+    };
 
-    socket.on('user-disconnected', () => {
+    const onUserDisconnected = () => {
       setRemoteStream(null);
       setConnectionStatus('disconnected');
-      closePeer();
-    });
+      closePeerRef.current();
+    };
+
+    socket.on('room-joined', onRoomJoined);
+    socket.on('user-joined', onUserJoined);
+    socket.on('offer', onOffer);
+    socket.on('answer', onAnswer);
+    socket.on('ice-candidate', onIceCandidate);
+    socket.on('user-disconnected', onUserDisconnected);
 
     return () => {
-      socket.off('room-joined');
-      socket.off('user-joined');
-      socket.off('offer');
-      socket.off('answer');
-      socket.off('ice-candidate');
-      socket.off('user-disconnected');
+      socket.off('room-joined', onRoomJoined);
+      socket.off('user-joined', onUserJoined);
+      socket.off('offer', onOffer);
+      socket.off('answer', onAnswer);
+      socket.off('ice-candidate', onIceCandidate);
+      socket.off('user-disconnected', onUserDisconnected);
     };
-  }, [socket, roomId, initiateCall, buildPeerConnection, closePeer]);
+  }, [socket]);
 
   useEffect(() => {
     return () => {

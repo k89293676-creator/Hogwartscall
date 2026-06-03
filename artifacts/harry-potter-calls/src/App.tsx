@@ -1,15 +1,15 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { MagicalBackground } from "@/components/MagicalBackground";
-import { WandCursor } from "@/components/WandCursor";
-import HomePage from "@/pages/HomePage";
-import Room from "@/pages/Room";
-import NotFound from "@/pages/not-found";
-import { useState, useEffect } from "react";
-import { loadSettings } from "@/components/SettingsPanel";
-import type { BackgroundQuality } from "@/components/SettingsPanel";
+import { Switch, Route, Router as WouterRouter } from 'wouter';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from '@/components/ui/toaster';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import { MagicalBackground } from '@/components/MagicalBackground';
+import { WandCursor } from '@/components/WandCursor';
+import HomePage from '@/pages/HomePage';
+import Room from '@/pages/Room';
+import NotFound from '@/pages/not-found';
+import { useState, useEffect } from 'react';
+import { loadSettings } from '@/components/SettingsPanel';
+import type { BackgroundQuality } from '@/components/SettingsPanel';
 
 const queryClient = new QueryClient();
 
@@ -27,15 +27,14 @@ function App() {
   const [backgroundQuality, setBackgroundQuality] = useState<BackgroundQuality>(loadSettings().backgroundQuality);
   const [wandEnabled, setWandEnabled] = useState(loadSettings().wandCursorEnabled);
 
-  // Listen for settings updates from localStorage (settings saved by SettingsPanel)
   useEffect(() => {
     const handler = () => {
       const s = loadSettings();
       setBackgroundQuality(s.backgroundQuality);
       setWandEnabled(s.wandCursorEnabled);
     };
-    window.addEventListener('storage', handler);
-    return () => window.removeEventListener('storage', handler);
+    window.addEventListener('hogwarts-settings-change', handler);
+    return () => window.removeEventListener('hogwarts-settings-change', handler);
   }, []);
 
   return (
@@ -43,7 +42,7 @@ function App() {
       <TooltipProvider>
         <MagicalBackground quality={backgroundQuality} />
         <WandCursor enabled={wandEnabled} />
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
           <Router />
         </WouterRouter>
         <Toaster />

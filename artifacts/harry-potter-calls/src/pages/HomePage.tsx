@@ -76,346 +76,241 @@ function BadgerSVG() {
 }
 
 const HOUSES: HouseConfig[] = [
-  {
-    id: 'gryffindor',
-    name: 'Gryffindor',
-    primary: '#C41E3A',
-    secondary: '#D4AF37',
-    animal: 'Lion',
-    svgAnimal: <LionSVG />,
-  },
-  {
-    id: 'slytherin',
-    name: 'Slytherin',
-    primary: '#1A472A',
-    secondary: '#AAAAAA',
-    animal: 'Serpent',
-    svgAnimal: <SerpentSVG />,
-  },
-  {
-    id: 'ravenclaw',
-    name: 'Ravenclaw',
-    primary: '#0E1A40',
-    secondary: '#946B2D',
-    animal: 'Eagle',
-    svgAnimal: <EagleSVG />,
-  },
-  {
-    id: 'hufflepuff',
-    name: 'Hufflepuff',
-    primary: '#F0C75E',
-    secondary: '#372E29',
-    animal: 'Badger',
-    svgAnimal: <BadgerSVG />,
-  },
+  { id: 'gryffindor', name: 'Gryffindor', primary: '#C41E3A', secondary: '#D4AF37', animal: 'Lion', svgAnimal: <LionSVG /> },
+  { id: 'slytherin',  name: 'Slytherin',  primary: '#1A472A', secondary: '#AAAAAA', animal: 'Serpent', svgAnimal: <SerpentSVG /> },
+  { id: 'ravenclaw',  name: 'Ravenclaw',  primary: '#0E1A40', secondary: '#946B2D', animal: 'Eagle', svgAnimal: <EagleSVG /> },
+  { id: 'hufflepuff', name: 'Hufflepuff', primary: '#F0C75E', secondary: '#372E29', animal: 'Badger', svgAnimal: <BadgerSVG /> },
 ];
 
-interface SparkPos { id: number; tx: string; ty: string; }
+function WaxSeal({ onClick, cracking }: { onClick: () => void; cracking: boolean }) {
+  return (
+    <motion.div
+      className="relative cursor-pointer select-none"
+      onClick={onClick}
+      whileHover={{ scale: cracking ? 1 : 1.05 }}
+      whileTap={{ scale: 0.97 }}
+      style={{ width: 80, height: 80 }}
+    >
+      <svg viewBox="0 0 80 80" width="80" height="80">
+        <circle cx="40" cy="40" r="36" fill="#8B0000" stroke="#5a0000" strokeWidth="2"/>
+        <circle cx="40" cy="40" r="32" fill="#A00000" opacity="0.7"/>
+        <text x="40" y="50" textAnchor="middle" fontFamily="'Cinzel Decorative', cursive" fontSize="28" fill="#D4AF37" opacity="0.95">H</text>
+        {cracking && (
+          <>
+            <motion.path
+              d="M40 10 L44 28 L50 20 L46 38 L55 30"
+              stroke="#D4AF37" strokeWidth="1.5" fill="none" strokeLinecap="round"
+              initial={{ pathLength: 0, opacity: 0 }}
+              animate={{ pathLength: 1, opacity: 1 }}
+              transition={{ duration: 0.4 }}
+            />
+            <motion.path
+              d="M40 10 L35 30 L28 22 L32 42 L22 35"
+              stroke="#D4AF37" strokeWidth="1.5" fill="none" strokeLinecap="round"
+              initial={{ pathLength: 0, opacity: 0 }}
+              animate={{ pathLength: 1, opacity: 1 }}
+              transition={{ duration: 0.4, delay: 0.1 }}
+            />
+            <motion.path
+              d="M40 70 L43 52 L50 60 L46 42"
+              stroke="#D4AF37" strokeWidth="1" fill="none" strokeLinecap="round"
+              initial={{ pathLength: 0, opacity: 0 }}
+              animate={{ pathLength: 1, opacity: 1 }}
+              transition={{ duration: 0.3, delay: 0.15 }}
+            />
+            <motion.ellipse
+              cx="40" cy="40" rx="36" ry="36"
+              fill="none" stroke="#00FF88" strokeWidth="2" opacity="0.6"
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1.5, opacity: 0 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+            />
+          </>
+        )}
+      </svg>
+    </motion.div>
+  );
+}
 
 export default function HomePage() {
   const [, setLocation] = useLocation();
-  const [roomId, setRoomId] = useState('');
   const [wizardName, setWizardName] = useState('');
-  const [step, setStep] = useState<'identity' | 'sorting'>('identity');
+  const [roomId, setRoomId] = useState('');
   const [selectedHouse, setSelectedHouse] = useState<House | null>(null);
-  const [selectedHouseAnim, setSelectedHouseAnim] = useState<House | null>(null);
-  const [flashGreen, setFlashGreen] = useState(false);
-  const [sparks, setSparks] = useState<SparkPos[]>([]);
-  const sparkIdRef = useRef(0);
+  const [isEntering, setIsEntering] = useState(false);
+  const [sealCracking, setSealCracking] = useState(false);
+  const [nameError, setNameError] = useState('');
 
-  const proceedToSorting = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (roomId.trim() && wizardName.trim()) {
-      setStep('sorting');
-    }
+  const generateRoomId = () => {
+    const adjectives = ['Ancient', 'Mystic', 'Golden', 'Silver', 'Shadow', 'Ember', 'Frost', 'Storm'];
+    const nouns = ['Cauldron', 'Wand', 'Snitch', 'Broom', 'Owl', 'Phoenix', 'Basilisk', 'Thestral'];
+    return `${adjectives[Math.floor(Math.random() * adjectives.length)]}${nouns[Math.floor(Math.random() * nouns.length)]}${Math.floor(Math.random() * 100)}`;
   };
 
-  const selectHouse = (house: House) => {
-    setSelectedHouse(house);
-    setSelectedHouseAnim(house);
+  const handleEnter = () => {
+    if (!wizardName.trim()) { setNameError('Please enter your wizard name!'); return; }
+    if (!selectedHouse) { setNameError('Please choose your house!'); return; }
+    setNameError('');
+
     sessionStorage.setItem('wizardName', wizardName.trim());
-    sessionStorage.setItem('house', house);
-  };
+    sessionStorage.setItem('house', selectedHouse);
 
-  const handleJoin = () => {
-    if (!selectedHouse) return;
-    setFlashGreen(true);
+    const targetRoom = roomId.trim() || generateRoomId();
+    setSealCracking(true);
+
     setTimeout(() => {
-      const params = new URLSearchParams({ name: wizardName.trim(), house: selectedHouse });
-      setLocation(`/room/${roomId.trim()}?${params.toString()}`);
+      setIsEntering(true);
+      setTimeout(() => {
+        setLocation(`/room/${targetRoom}?name=${encodeURIComponent(wizardName.trim())}&house=${selectedHouse}`);
+      }, 600);
     }, 500);
   };
 
-  const generateRoom = (e: React.MouseEvent) => {
-    const id = Math.random().toString(36).substring(2, 8).toUpperCase();
-    triggerSparks(e);
-    if (wizardName.trim() && selectedHouse) {
-      const params = new URLSearchParams({ name: wizardName.trim(), house: selectedHouse });
-      setLocation(`/room/${id}?${params.toString()}`);
-    } else {
-      setRoomId(id);
-      if (step === 'identity') {
-        setStep('identity');
-      }
-    }
-  };
-
-  const triggerSparks = (e: React.MouseEvent) => {
-    const newSparks: SparkPos[] = Array.from({ length: 4 }).map(() => ({
-      id: sparkIdRef.current++,
-      tx: `${(Math.random() - 0.5) * 60}px`,
-      ty: `${-(Math.random() * 50 + 20)}px`,
-    }));
-    setSparks(prev => [...prev, ...newSparks]);
-    setTimeout(() => setSparks(prev => prev.filter(s => !newSparks.find(n => n.id === s.id))), 700);
-    void e;
-  };
-
   return (
-    <div className={`min-h-screen w-full flex items-center justify-center relative overflow-hidden p-4 ${selectedHouse ? `house-${selectedHouse}` : ''}`}>
-
-      {/* Floo Fireplace behind card */}
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden">
       <FlooFireplace />
 
-      {/* Overlay gradient */}
-      <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-background/80 via-background/60 to-background/90 z-0" />
-
-      {/* Green flash overlay */}
-      <AnimatePresence>
-        {flashGreen && (
-          <motion.div
-            className="absolute inset-0 z-50 pointer-events-none"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: [0, 0.4, 0] }}
-            transition={{ duration: 0.5, times: [0, 0.4, 1] }}
-            style={{ background: 'rgba(0,255,136,0.35)' }}
-          />
-        )}
-      </AnimatePresence>
-
       <motion.div
-        initial={{ opacity: 0, y: 20, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, ease: 'easeOut' }}
-        className="w-full max-w-md parchment rounded-3xl p-8 shadow-2xl relative z-10 magic-border"
-        style={{ position: 'relative' }}
+        className="w-full max-w-md z-10 space-y-6"
       >
-        {/* Wax seal top center */}
-        <div
-          className="absolute -top-6 left-1/2 -translate-x-1/2 w-12 h-12 rounded-full flex items-center justify-center z-20"
-          style={{
-            background: 'radial-gradient(circle at 40% 35%, #C41E3A, #8B0000)',
-            boxShadow: '0 0 12px rgba(196,30,58,0.7), 0 2px 8px rgba(0,0,0,0.5)',
-            border: '2px solid rgba(212,175,55,0.4)',
-          }}
-        >
-          <span className="font-harry text-primary text-lg font-bold" style={{ textShadow: '0 0 6px rgba(212,175,55,0.8)' }}>H</span>
-        </div>
-
-        {/* SVG ink-written title */}
-        <div className="text-center mb-6 mt-4">
-          <svg viewBox="0 0 340 56" width="100%" height="56" className="mb-1">
-            <text
-              x="170" y="44"
-              textAnchor="middle"
-              fontFamily="'Cinzel Decorative', cursive"
-              fontSize="30"
-              fill="none"
-              stroke="#D4AF37"
-              strokeWidth="0.8"
-              style={{
-                strokeDasharray: 600,
-                strokeDashoffset: 0,
-                animation: 'inkWrite 2s ease forwards',
-                filter: 'drop-shadow(0 0 8px rgba(212,175,55,0.6))',
-              }}
-            >
-              The Floo Network
-            </text>
-            <text
-              x="170" y="44"
-              textAnchor="middle"
-              fontFamily="'Cinzel Decorative', cursive"
-              fontSize="30"
-              fill="#D4AF37"
-              opacity="0.15"
-            >
-              The Floo Network
-            </text>
-          </svg>
-          <p className="font-cinzel text-muted-foreground text-xs tracking-widest">
-            Step through the fireplace to cast magical video calls
+        {/* Header */}
+        <div className="text-center space-y-2">
+          <motion.h1
+            className="font-harry text-5xl gold-shimmer-text"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.2, duration: 0.6 }}
+          >
+            Floo Network
+          </motion.h1>
+          <p className="font-cinzel text-primary/70 text-sm tracking-widest uppercase">
+            Magical Video Calls
           </p>
         </div>
 
-        {/* Step 1: Identity */}
-        <AnimatePresence mode="wait">
-          {step === 'identity' && (
-            <motion.form
-              key="identity"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.35 }}
-              onSubmit={proceedToSorting}
-              className="space-y-4"
-            >
-              <div className="space-y-2">
-                <label className="font-cinzel text-primary/80 text-sm pl-2 block">Your Wizard Name</label>
-                <Input
-                  value={wizardName}
-                  onChange={e => setWizardName(e.target.value)}
-                  placeholder="e.g. Harry Potter"
-                  className="bg-input/50 border-primary/30 text-center font-cinzel text-base h-12 rounded-xl focus:ring-primary focus:border-primary placeholder:text-muted-foreground/30"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="font-cinzel text-primary/80 text-sm pl-2 block">Floo Destination (Room ID)</label>
-                <Input
-                  value={roomId}
-                  onChange={e => setRoomId(e.target.value)}
-                  placeholder="e.g. HOGWARTS77"
-                  className="bg-input/50 border-primary/30 text-center font-cinzel text-base h-12 rounded-xl focus:ring-primary focus:border-primary placeholder:text-muted-foreground/30 uppercase"
-                />
-              </div>
-              <div className="pt-2 space-y-3">
-                <Button
-                  type="submit"
-                  disabled={!roomId.trim() || !wizardName.trim()}
-                  className="wand-btn w-full h-12 font-cinzel font-bold text-base bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl glow-gold transition-all relative overflow-hidden"
+        {/* Form card */}
+        <motion.div
+          className="parchment rounded-2xl magic-border p-6 space-y-5 shadow-2xl parchment-texture"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+        >
+          {/* Wax seal */}
+          <div className="flex justify-center -mt-2 mb-2">
+            <WaxSeal onClick={() => {}} cracking={sealCracking} />
+          </div>
+
+          {/* Name input */}
+          <div className="space-y-2">
+            <label className="font-cinzel text-primary text-xs uppercase tracking-widest">Your Wizard Name</label>
+            <Input
+              value={wizardName}
+              onChange={e => { setWizardName(e.target.value); setNameError(''); }}
+              placeholder="Enter your name..."
+              onKeyDown={e => e.key === 'Enter' && handleEnter()}
+              className="bg-black/30 border-primary/30 font-cinzel text-sm focus:border-primary/70 placeholder:text-muted-foreground/50"
+            />
+          </div>
+
+          {/* House selection */}
+          <div className="space-y-2">
+            <label className="font-cinzel text-primary text-xs uppercase tracking-widest">Choose Your House</label>
+            <div className="grid grid-cols-2 gap-2">
+              {HOUSES.map(h => (
+                <motion.button
+                  key={h.id}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setSelectedHouse(h.id)}
+                  className={`p-3 rounded-xl border transition-all flex items-center gap-2 ${selectedHouse === h.id ? 'house-selected' : ''}`}
+                  style={{
+                    background: selectedHouse === h.id ? `${h.primary}30` : 'rgba(0,0,0,0.3)',
+                    borderColor: selectedHouse === h.id ? h.primary : 'rgba(212,175,55,0.2)',
+                    boxShadow: selectedHouse === h.id ? `0 0 12px ${h.primary}40` : 'none',
+                  }}
                 >
-                  Choose Your House →
-                </Button>
-                <div className="relative flex items-center py-1">
-                  <div className="flex-grow border-t border-primary/20" />
-                  <span className="flex-shrink-0 mx-3 font-cinzel text-muted-foreground text-xs">OR</span>
-                  <div className="flex-grow border-t border-primary/20" />
-                </div>
-                <div className="relative">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={generateRoom}
-                    className="wand-btn w-full h-12 font-cinzel text-primary border-primary/50 hover:bg-primary/10 rounded-xl relative overflow-hidden"
-                  >
-                    Conjure New Room
-                  </Button>
-                  {sparks.map(s => (
-                    <div
-                      key={s.id}
-                      className="absolute top-1/2 left-1/2 w-2 h-2 rounded-full bg-primary pointer-events-none"
-                      style={{
-                        '--tx': s.tx,
-                        '--ty': s.ty,
-                        animation: 'sparkBurst 0.6s ease forwards',
-                      } as React.CSSProperties}
-                    />
-                  ))}
-                </div>
-              </div>
-            </motion.form>
+                  <div style={{ color: h.secondary }}>{h.svgAnimal}</div>
+                  <div className="text-left">
+                    <div className="font-cinzel text-xs font-bold" style={{ color: selectedHouse === h.id ? h.secondary : '#D4AF37' }}>{h.name}</div>
+                    <div className="font-cinzel text-[9px] text-muted-foreground">{h.animal}</div>
+                  </div>
+                </motion.button>
+              ))}
+            </div>
+          </div>
+
+          {/* Room ID */}
+          <div className="space-y-2">
+            <label className="font-cinzel text-primary text-xs uppercase tracking-widest">Room ID (optional)</label>
+            <Input
+              value={roomId}
+              onChange={e => setRoomId(e.target.value)}
+              placeholder="Leave blank to generate..."
+              className="bg-black/30 border-primary/30 font-cinzel text-sm focus:border-primary/70 placeholder:text-muted-foreground/50"
+            />
+          </div>
+
+          {nameError && (
+            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="font-cinzel text-xs text-destructive text-center">
+              ✦ {nameError}
+            </motion.p>
           )}
 
-          {/* Step 2: House Sorting */}
-          {step === 'sorting' && (
-            <motion.div
-              key="sorting"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              transition={{ duration: 0.35 }}
-              className="space-y-4"
-            >
-              <div className="text-center mb-2">
-                <p className="font-cinzel text-primary text-sm tracking-widest">Choose Your House, {wizardName}</p>
-              </div>
+          {/* Enter button */}
+          <Button
+            onClick={handleEnter}
+            disabled={isEntering}
+            className="w-full font-cinzel tracking-widest py-5 text-sm transition-all relative overflow-hidden"
+            style={{
+              background: isEntering
+                ? 'rgba(0,255,136,0.3)'
+                : selectedHouse
+                  ? `linear-gradient(135deg, ${HOUSES.find(h => h.id === selectedHouse)?.primary}80, rgba(212,175,55,0.3))`
+                  : 'linear-gradient(135deg, rgba(212,175,55,0.2), rgba(120,80,20,0.3))',
+              border: `1px solid ${selectedHouse ? HOUSES.find(h => h.id === selectedHouse)?.primary + '80' : 'rgba(212,175,55,0.4)'}`,
+              boxShadow: selectedHouse ? `0 0 20px ${HOUSES.find(h => h.id === selectedHouse)?.primary}30` : 'none',
+            }}
+          >
+            {isEntering ? (
+              <span className="flex items-center justify-center gap-2">
+                <span style={{ animation: 'spin 0.5s linear infinite' }}>🔥</span>
+                Entering the Floo...
+              </span>
+            ) : '🔥 Enter Fireplace'}
+          </Button>
+        </motion.div>
 
-              <div className="grid grid-cols-2 gap-3">
-                {HOUSES.map(house => (
-                  <button
-                    key={house.id}
-                    onClick={() => selectHouse(house.id)}
-                    className={`relative flex flex-col items-center p-4 rounded-2xl border-2 transition-all duration-200 ${
-                      selectedHouseAnim === house.id ? 'house-selected' : ''
-                    }`}
-                    style={{
-                      borderColor: selectedHouse === house.id ? house.primary : `${house.primary}55`,
-                      background: selectedHouse === house.id
-                        ? `linear-gradient(135deg, ${house.primary}30, ${house.secondary}20)`
-                        : `linear-gradient(135deg, ${house.primary}15, ${house.secondary}08)`,
-                      boxShadow: selectedHouse === house.id
-                        ? `0 0 20px ${house.primary}50, inset 0 0 10px ${house.primary}15`
-                        : 'none',
-                    }}
-                  >
-                    {/* SVG Shield */}
-                    <svg viewBox="0 0 60 70" width="56" height="64" className="mb-2">
-                      <path
-                        d="M30 4 L56 14 L56 36 Q56 58 30 68 Q4 58 4 36 L4 14 Z"
-                        fill={`${house.primary}CC`}
-                        stroke={house.secondary}
-                        strokeWidth="2"
-                      />
-                      {/* Diagonal quarters */}
-                      <line x1="4" y1="14" x2="56" y2="14" stroke={house.secondary} strokeWidth="1" opacity="0.5"/>
-                      <line x1="30" y1="4" x2="30" y2="68" stroke={house.secondary} strokeWidth="1" opacity="0.5"/>
-                      {/* Animal icon */}
-                      <foreignObject x="12" y="18" width="36" height="36">
-                        <div
-                          xmlns="http://www.w3.org/1999/xhtml"
-                          style={{ color: house.secondary, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}
-                        >
-                          {house.svgAnimal}
-                        </div>
-                      </foreignObject>
-                    </svg>
-                    <span
-                      className="font-cinzel text-xs font-bold tracking-wider"
-                      style={{ color: house.secondary }}
-                    >
-                      {house.name}
-                    </span>
-                    {selectedHouse === house.id && (
-                      <div
-                        className="absolute top-2 right-2 w-3 h-3 rounded-full"
-                        style={{ background: house.secondary, boxShadow: `0 0 6px ${house.secondary}` }}
-                      />
-                    )}
-                  </button>
-                ))}
-              </div>
-
-              <div className="pt-2 space-y-3">
-                <Button
-                  onClick={handleJoin}
-                  disabled={!selectedHouse}
-                  className="wand-btn w-full h-12 font-cinzel font-bold text-base bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl glow-gold relative overflow-hidden"
-                >
-                  Enter Fireplace ✨
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => setStep('identity')}
-                  className="w-full h-10 font-cinzel text-muted-foreground hover:text-primary text-sm"
-                >
-                  ← Back
-                </Button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Decorative corners */}
-        <div className="absolute top-2 left-2 w-4 h-4 border-t border-l border-primary/30 rounded-tl" />
-        <div className="absolute top-2 right-2 w-4 h-4 border-t border-r border-primary/30 rounded-tr" />
-        <div className="absolute bottom-2 left-2 w-4 h-4 border-b border-l border-primary/30 rounded-bl" />
-        <div className="absolute bottom-2 right-2 w-4 h-4 border-b border-r border-primary/30 rounded-br" />
-        {/* Crinkle pseudo shadows at corners */}
-        <div className="absolute top-0 left-0 w-6 h-6 pointer-events-none" style={{ boxShadow: 'inset 2px 2px 4px rgba(0,0,0,0.3)', borderRadius: '0 0 4px 0' }} />
-        <div className="absolute top-0 right-0 w-6 h-6 pointer-events-none" style={{ boxShadow: 'inset -2px 2px 4px rgba(0,0,0,0.3)', borderRadius: '0 0 0 4px' }} />
-        <div className="absolute bottom-0 left-0 w-6 h-6 pointer-events-none" style={{ boxShadow: 'inset 2px -2px 4px rgba(0,0,0,0.3)', borderRadius: '0 4px 0 0' }} />
-        <div className="absolute bottom-0 right-0 w-6 h-6 pointer-events-none" style={{ boxShadow: 'inset -2px -2px 4px rgba(0,0,0,0.3)', borderRadius: '4px 0 0 0' }} />
+        {/* Footer */}
+        <motion.p className="text-center font-cinzel text-[10px] text-muted-foreground/50 tracking-widest"
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1 }}>
+          Use hand gestures to cast spells during your call
+        </motion.p>
       </motion.div>
+
+      {/* Floo transition overlay */}
+      <AnimatePresence>
+        {isEntering && (
+          <motion.div
+            initial={{ scaleY: 0 }}
+            animate={{ scaleY: 1 }}
+            exit={{ scaleY: 0 }}
+            transition={{ duration: 0.5, ease: 'easeInOut' }}
+            className="fixed inset-0 z-50 flex items-center justify-center"
+            style={{ background: 'radial-gradient(ellipse, #00FF88 0%, #003322 50%, #001a0d 100%)', transformOrigin: 'bottom' }}
+          >
+            <motion.span
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: 1, scale: 1.5 }}
+              className="text-7xl"
+            >
+              🔥
+            </motion.span>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

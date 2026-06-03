@@ -174,7 +174,7 @@ export function MagicalBackground({ quality = 'cinematic' }: MagicalBackgroundPr
 
       // ─── FLOATING CANDLES ─────────────────────────────────────
       const candles: THREE.PointLight[] = [];
-      const candleCount = isBalanced ? 6 : 10;
+      const candleCount = isBalanced ? 12 : 30;
       for (let i = 0; i < candleCount; i++) {
         const candle = new THREE.PointLight(0xFFA500, 1, 5);
         candle.position.set((Math.random() - 0.5) * 10, (Math.random() - 0.5) * 6, (Math.random() - 0.5) * 4);

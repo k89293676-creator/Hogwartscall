@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 
 export type BackgroundQuality = 'cinematic' | 'balanced' | 'performance';
 
-interface Settings {
+export interface Settings {
   backgroundQuality: BackgroundQuality;
   wandCursorEnabled: boolean;
   spellSoundsEnabled: boolean;
@@ -21,7 +22,7 @@ const DEFAULT_SETTINGS: Settings = {
   videoBlur: false,
 };
 
-function loadSettings(): Settings {
+export function loadSettings(): Settings {
   try {
     const raw = localStorage.getItem('hogwarts-settings');
     if (raw) return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
@@ -31,21 +32,25 @@ function loadSettings(): Settings {
 
 function saveSettings(s: Settings) {
   localStorage.setItem('hogwarts-settings', JSON.stringify(s));
+  window.dispatchEvent(new CustomEvent('hogwarts-settings-change'));
 }
 
 interface SettingsPanelProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSettingsChange: (settings: Settings) => void;
+  onShowGestureTutorial?: () => void;
 }
 
-export function SettingsPanel({ open, onOpenChange, onSettingsChange }: SettingsPanelProps) {
+export function SettingsPanel({ open, onOpenChange, onSettingsChange, onShowGestureTutorial }: SettingsPanelProps) {
   const [settings, setSettings] = useState<Settings>(loadSettings);
+  const onSettingsChangeRef = useRef(onSettingsChange);
+  onSettingsChangeRef.current = onSettingsChange;
 
   useEffect(() => {
     saveSettings(settings);
-    onSettingsChange(settings);
-  }, [settings, onSettingsChange]);
+    onSettingsChangeRef.current(settings);
+  }, [settings]);
 
   const update = (patch: Partial<Settings>) => {
     setSettings(prev => ({ ...prev, ...patch }));
@@ -65,7 +70,6 @@ export function SettingsPanel({ open, onOpenChange, onSettingsChange }: Settings
         </DialogHeader>
 
         <div className="space-y-5 pt-2">
-          {/* Background Quality */}
           <div className="space-y-2">
             <Label className="font-cinzel text-primary/80 text-sm">Background Quality</Label>
             <div className="space-y-2">
@@ -86,7 +90,6 @@ export function SettingsPanel({ open, onOpenChange, onSettingsChange }: Settings
             </div>
           </div>
 
-          {/* Toggle switches */}
           {[
             { key: 'wandCursorEnabled', label: 'Wand Cursor', desc: 'Custom wand cursor with trail' },
             { key: 'spellSoundsEnabled', label: 'Spell Sound Effects', desc: 'Magical chime on spell cast' },
@@ -104,11 +107,18 @@ export function SettingsPanel({ open, onOpenChange, onSettingsChange }: Settings
               />
             </div>
           ))}
+
+          {onShowGestureTutorial && (
+            <Button
+              variant="outline"
+              className="w-full font-cinzel text-sm border-primary/30 text-primary hover:bg-primary/10"
+              onClick={() => { onOpenChange(false); onShowGestureTutorial(); }}
+            >
+              🪄 Show Gesture Guide
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>
   );
 }
-
-export { loadSettings };
-export type { Settings };

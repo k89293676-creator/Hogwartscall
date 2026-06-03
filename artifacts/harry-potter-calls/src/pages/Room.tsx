@@ -6,19 +6,21 @@ import { useWebRTC } from '@/hooks/useWebRTC';
 import { useGesture } from '@/hooks/useGesture';
 import { useSpells } from '@/hooks/useSpells';
 import { SPELLS } from '@/utils/spells';
+import { QRCodeSVG } from 'qrcode.react';
 
 import { VideoTile } from '@/components/VideoTile';
 import { SpellOverlay } from '@/components/SpellOverlay';
 import { DrawingBoard } from '@/components/DrawingBoard';
 import { SpellPanel } from '@/components/SpellPanel';
 import { SettingsPanel, loadSettings } from '@/components/SettingsPanel';
+import { ChatDrawer, ChatMessage } from '@/components/ChatDrawer';
+import { GestureTutorial } from '@/components/GestureTutorial';
 import type { Settings } from '@/components/SettingsPanel';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
   LuMic, LuMicOff, LuVideo, LuVideoOff, LuPenTool,
   LuDoorOpen, LuChevronLeft, LuChevronRight, LuCopy, LuSettings,
-  LuMonitor, LuSmile, LuVolume2, LuVolumeX, LuWand2,
+  LuMonitor, LuSmile, LuVolume2, LuVolumeX, LuWand, LuMessageSquare,
 } from 'react-icons/lu';
 import { useToast } from '@/hooks/use-toast';
 
@@ -34,6 +36,8 @@ const REACTION_EMOJIS = ['🧙', '⚡', '🦉', '🏆', '👻', '🐍', '🦁', 
 interface FloatingReaction { id: number; emoji: string; x: number; }
 interface SpellHistoryEntry { name: string; color: string; icon: string; timestamp: number; }
 
+type ConnectionQuality = 'good' | 'fair' | 'poor' | null;
+
 function HogwartsCrest({ size = 36 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 40 46">
@@ -45,6 +49,21 @@ function HogwartsCrest({ size = 36 }: { size?: number }) {
   );
 }
 
+function ConnectionRune({ quality, rtt }: { quality: ConnectionQuality; rtt: number | null }) {
+  if (!quality) return null;
+  const rune = quality === 'good' ? 'ᛟ' : quality === 'fair' ? 'ᚷ' : 'ᚱ';
+  const color = quality === 'good' ? '#4ade80' : quality === 'fair' ? '#facc15' : '#f87171';
+  return (
+    <span
+      title={rtt ? `RTT: ${Math.round(rtt * 1000)}ms` : 'Connection quality'}
+      className="font-cinzel text-sm cursor-help ml-1"
+      style={{ color, textShadow: `0 0 8px ${color}`, transition: 'color 0.5s' }}
+    >
+      {rune}
+    </span>
+  );
+}
+
 export default function Room() {
   const { roomId } = useParams<{ roomId: string }>();
   const search = useSearch();
@@ -52,7 +71,6 @@ export default function Room() {
   const socket = useSocket();
   const { toast } = useToast();
 
-  // Parse query params
   const params = new URLSearchParams(search);
   const wizardName = params.get('name') || sessionStorage.getItem('wizardName') || 'Wizard';
   const house = (params.get('house') || sessionStorage.getItem('house') || '') as string;
@@ -62,27 +80,42 @@ export default function Room() {
   const [drawingMode, setDrawingMode] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const [reactionPopoverOpen, setReactionPopoverOpen] = useState(false);
   const [floatingReactions, setFloatingReactions] = useState<FloatingReaction[]>([]);
   const [spellHistory, setSpellHistory] = useState<SpellHistoryEntry[]>([]);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(settings.spellSoundsEnabled);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [connectionQuality, setConnectionQuality] = useState<ConnectionQuality>(null);
+  const [connectionRtt, setConnectionRtt] = useState<number | null>(null);
+  const [showGestureTutorial, setShowGestureTutorial] = useState(false);
+  const [mobileSpellOpen, setMobileSpellOpen] = useState(false);
+  const isMobile = window.innerWidth < 768;
+
   const reactionIdRef = useRef(0);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const chatIdRef = useRef(0);
 
   const { localStream, remoteStream, dataChannel, connectionStatus, setLocalStream, peerConnectionRef } = useWebRTC(socket, roomId!);
   const { landmarks, currentGesture } = useGesture(localStream);
-  const { currentSpell, cooldowns } = useSpells(currentGesture);
+  const { currentSpell, cooldowns, castSpell } = useSpells(currentGesture);
 
-  // Apply house class to body
+  // Show gesture tutorial on first visit
   useEffect(() => {
-    if (house) {
-      document.body.classList.add(`house-${house}`);
+    if (!localStorage.getItem('gesture-tutorial-seen')) {
+      const t = setTimeout(() => setShowGestureTutorial(true), 1500);
+      return () => clearTimeout(t);
     }
-    return () => {
-      document.body.classList.remove(`house-${house}`);
-    };
+    return undefined;
+  }, []);
+
+  // Apply house class
+  useEffect(() => {
+    if (house) document.body.classList.add(`house-${house}`);
+    return () => { if (house) document.body.classList.remove(`house-${house}`); };
   }, [house]);
 
   // Init media
@@ -107,6 +140,27 @@ export default function Room() {
     return () => { if (localStream) localStream.getTracks().forEach(t => t.stop()); };
   }, [localStream]);
 
+  // Connection quality polling every 5s
+  useEffect(() => {
+    if (connectionStatus !== 'connected') return;
+    const interval = setInterval(async () => {
+      if (!peerConnectionRef.current) return;
+      try {
+        const stats = await peerConnectionRef.current.getStats();
+        stats.forEach((report) => {
+          if (report.type === 'candidate-pair' && report.state === 'succeeded' && report.currentRoundTripTime !== undefined) {
+            const rtt: number = report.currentRoundTripTime;
+            setConnectionRtt(rtt);
+            if (rtt < 0.08) setConnectionQuality('good');
+            else if (rtt < 0.2) setConnectionQuality('fair');
+            else setConnectionQuality('poor');
+          }
+        });
+      } catch {}
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [connectionStatus, peerConnectionRef]);
+
   // Track spell history
   useEffect(() => {
     if (!currentSpell) return;
@@ -116,14 +170,9 @@ export default function Room() {
       const entry: SpellHistoryEntry = { name: spell.name, color: spell.color, icon: spell.icon, timestamp: Date.now() };
       return [entry, ...prev].slice(0, 5);
     });
-
-    // Play Web Audio chime if sound enabled
-    if (soundEnabled) {
-      playMagicalChime(spell.color);
-    }
+    if (soundEnabled) playMagicalChime(spell.color);
   }, [currentSpell, soundEnabled]);
 
-  // Prune spell history after 10s
   useEffect(() => {
     const interval = setInterval(() => {
       const cutoff = Date.now() - 10000;
@@ -132,26 +181,53 @@ export default function Room() {
     return () => clearInterval(interval);
   }, []);
 
-  // Handle incoming datachannel reactions
+  // DataChannel messages (reactions + chat)
   useEffect(() => {
     if (!dataChannel) return;
     const handler = (e: MessageEvent) => {
       try {
         const data = JSON.parse(e.data);
-        if (data.type === 'reaction') {
-          spawnReaction(data.emoji);
+        if (data.type === 'reaction') spawnReaction(data.emoji);
+        if (data.type === 'chat') {
+          setChatMessages(prev => [...prev, {
+            id: String(chatIdRef.current++),
+            sender: data.sender || 'Remote Wizard',
+            text: data.text,
+            timestamp: data.timestamp || Date.now(),
+            house: data.house || '',
+            isLocal: false,
+          }]);
+          if (!chatOpen) setUnreadCount(c => c + 1);
         }
       } catch {}
     };
     dataChannel.addEventListener('message', handler);
     return () => dataChannel.removeEventListener('message', handler);
-  }, [dataChannel]);
+  }, [dataChannel, chatOpen]);
+
+  const castSpellManually = useCallback((spellName: string) => {
+    castSpell(spellName);
+    setMobileSpellOpen(false);
+  }, [castSpell]);
+
+  const sendChatMessage = useCallback((text: string) => {
+    const msg: ChatMessage = {
+      id: String(chatIdRef.current++),
+      sender: wizardName,
+      text,
+      timestamp: Date.now(),
+      house,
+      isLocal: true,
+    };
+    setChatMessages(prev => [...prev, msg]);
+    if (dataChannel?.readyState === 'open') {
+      dataChannel.send(JSON.stringify({ type: 'chat', sender: wizardName, text, house, timestamp: msg.timestamp }));
+    }
+  }, [wizardName, house, dataChannel]);
 
   const playMagicalChime = (color: string) => {
     try {
-      if (!audioContextRef.current) {
-        audioContextRef.current = new AudioContext();
-      }
+      if (!audioContextRef.current) audioContextRef.current = new AudioContext();
       const ctx = audioContextRef.current;
       const osc = ctx.createOscillator();
       const gainNode = ctx.createGain();
@@ -200,7 +276,6 @@ export default function Room() {
   const toggleScreenShare = useCallback(async () => {
     if (!peerConnectionRef?.current) return;
     if (isScreenSharing) {
-      // Revert to camera
       if (localStream) {
         const videoTrack = localStream.getVideoTracks()[0];
         const sender = peerConnectionRef.current.getSenders().find(s => s.track?.kind === 'video');
@@ -215,9 +290,7 @@ export default function Room() {
         if (sender) await sender.replaceTrack(displayTrack);
         displayTrack.onended = () => setIsScreenSharing(false);
         setIsScreenSharing(true);
-      } catch {
-        // user cancelled
-      }
+      } catch {}
     }
   }, [isScreenSharing, localStream, peerConnectionRef]);
 
@@ -242,7 +315,6 @@ export default function Room() {
   };
 
   const houseColors = house ? HOUSE_COLORS[house] : null;
-
   const currentSpellData = currentSpell ? SPELLS.find(s => s.name === currentSpell) : null;
 
   if (!roomId) return null;
@@ -253,79 +325,50 @@ export default function Room() {
       {/* Floating emoji reactions */}
       <AnimatePresence>
         {floatingReactions.map(r => (
-          <motion.div
-            key={r.id}
-            className="fixed pointer-events-none z-50 text-4xl"
-            initial={{ opacity: 1, y: 0, scale: 1 }}
-            animate={{ opacity: 0, y: -160, scale: 1.5 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 2, ease: 'easeOut' }}
-            style={{ left: `${r.x}%`, bottom: '120px' }}
-          >
+          <motion.div key={r.id} className="fixed pointer-events-none z-50 text-4xl"
+            initial={{ opacity: 1, y: 0, scale: 1 }} animate={{ opacity: 0, y: -160, scale: 1.5 }}
+            exit={{ opacity: 0 }} transition={{ duration: 2, ease: 'easeOut' }}
+            style={{ left: `${r.x}%`, bottom: '120px' }}>
             {r.emoji}
           </motion.div>
         ))}
       </AnimatePresence>
 
-      {/* ─── GREAT HALL HEADER ─────────────────────────────────── */}
-      <header
-        className="h-16 px-4 flex items-center justify-between z-20 relative"
+      {/* Gesture Tutorial */}
+      <GestureTutorial open={showGestureTutorial} onClose={() => setShowGestureTutorial(false)} />
+
+      {/* ─── HEADER ──────────────────────────────────────────── */}
+      <header className="h-16 px-4 flex items-center justify-between z-20 relative"
         style={{
-          background: `
-            repeating-linear-gradient(
-              90deg,
-              rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px,
-              transparent 1px, transparent 40px
-            ),
-            repeating-linear-gradient(
-              0deg,
-              rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px,
-              transparent 1px, transparent 40px
-            ),
-            linear-gradient(to bottom, rgba(0,0,0,0.85), rgba(0,0,0,0.6))
-          `,
+          background: `repeating-linear-gradient(90deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 40px),
+            repeating-linear-gradient(0deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 40px),
+            linear-gradient(to bottom, rgba(0,0,0,0.85), rgba(0,0,0,0.6))`,
           borderBottom: `1px solid ${houseColors?.primary || 'rgba(212,175,55,0.3)'}`,
-        }}
-      >
-        {/* Left: Hogwarts crest */}
+        }}>
         <div className="flex items-center gap-3">
           <HogwartsCrest size={32} />
           <div className="flex items-center gap-2">
-            {/* Connection status dot */}
-            <div
-              className="w-2 h-2 rounded-full"
-              style={{
-                background: getStatusColor(),
-                boxShadow: connectionStatus === 'connected' ? `0 0 6px ${getStatusColor()}` : 'none',
-                animation: connectionStatus === 'connected' ? 'connectedPulse 2s ease-in-out infinite' : undefined,
-              }}
-            />
+            <div className="w-2 h-2 rounded-full" style={{
+              background: getStatusColor(),
+              boxShadow: connectionStatus === 'connected' ? `0 0 6px ${getStatusColor()}` : 'none',
+              animation: connectionStatus === 'connected' ? 'connectedPulse 2s ease-in-out infinite' : undefined,
+            }} />
             <span className="font-cinzel text-xs text-muted-foreground">
               {connectionStatus === 'connected' ? 'Connected' : connectionStatus === 'connecting' ? 'Connecting...' : 'Waiting...'}
             </span>
+            <ConnectionRune quality={connectionQuality} rtt={connectionRtt} />
           </div>
         </div>
 
-        {/* Center: Room name with gold shimmer */}
-        <h1 className="font-harry text-xl gold-shimmer-text tracking-wider hidden md:block">
-          Room: {roomId}
-        </h1>
+        <h1 className="font-harry text-xl gold-shimmer-text tracking-wider hidden md:block">Room: {roomId}</h1>
 
-        {/* Right: Settings + Leave */}
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setSettingsOpen(true)}
-            className="text-primary hover:text-primary hover:bg-primary/20"
-          >
+          <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)}
+            className="text-primary hover:text-primary hover:bg-primary/20">
             <LuSettings className="w-4 h-4" />
           </Button>
-          <Button
-            variant="ghost"
-            onClick={leaveRoom}
-            className="text-destructive hover:text-destructive hover:bg-destructive/20 font-cinzel text-sm"
-          >
+          <Button variant="ghost" onClick={leaveRoom}
+            className="text-destructive hover:text-destructive hover:bg-destructive/20 font-cinzel text-sm">
             <LuDoorOpen className="w-4 h-4 mr-1.5" />
             <span className="hidden md:inline">Leave</span>
           </Button>
@@ -333,21 +376,14 @@ export default function Room() {
       </header>
 
       <div className="flex flex-1 relative overflow-hidden">
-        {/* ─── LEFT SIDEBAR ──────────────────────────────────────── */}
+        {/* ─── LEFT SIDEBAR ──────────────────────────────────── */}
         <AnimatePresence>
           {sidebarOpen && (
             <motion.aside
-              initial={{ x: -300, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: -300, opacity: 0 }}
+              initial={{ x: -300, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -300, opacity: 0 }}
               transition={{ type: 'spring', damping: 24, stiffness: 200 }}
               className="w-72 flex-shrink-0 parchment border-r border-primary/20 flex flex-col gap-4 p-4 z-10 overflow-y-auto"
-              style={{
-                background: 'rgba(10,8,20,0.95)',
-                backdropFilter: 'blur(12px)',
-              }}
-            >
-              {/* Room info */}
+              style={{ background: 'rgba(10,8,20,0.95)', backdropFilter: 'blur(12px)' }}>
               <div className="space-y-2">
                 <h3 className="font-cinzel text-primary text-xs uppercase tracking-widest">Room Info</h3>
                 <div className="flex items-center gap-2 bg-black/30 rounded-lg px-3 py-2">
@@ -356,9 +392,13 @@ export default function Room() {
                     <LuCopy className="w-3 h-3" />
                   </Button>
                 </div>
+                {/* QR Code */}
+                <div className="flex flex-col items-center gap-1 bg-black/20 rounded-xl p-3 mt-2">
+                  <QRCodeSVG value={window.location.href} size={120} bgColor="transparent" fgColor="#D4AF37" />
+                  <span className="font-cinzel text-[9px] text-muted-foreground uppercase tracking-widest mt-1">Scan to join</span>
+                </div>
               </div>
 
-              {/* Participants */}
               <div className="space-y-2">
                 <h3 className="font-cinzel text-primary text-xs uppercase tracking-widest">Participants</h3>
                 {[
@@ -376,15 +416,14 @@ export default function Room() {
                       )}
                       <span className="font-cinzel text-xs flex-1" style={{ color: pColors?.secondary || '#D4AF37' }}>{p.name}</span>
                       <div className="flex gap-1">
-                        <div className={`w-2 h-2 rounded-full ${p.audioOn ? 'bg-green-400' : 'bg-red-500'}`} title={p.audioOn ? 'Mic on' : 'Mic off'} />
-                        <div className={`w-2 h-2 rounded-full ${p.videoOn ? 'bg-green-400' : 'bg-red-500'}`} title={p.videoOn ? 'Cam on' : 'Cam off'} />
+                        <div className={`w-2 h-2 rounded-full ${p.audioOn ? 'bg-green-400' : 'bg-red-500'}`} />
+                        <div className={`w-2 h-2 rounded-full ${p.videoOn ? 'bg-green-400' : 'bg-red-500'}`} />
                       </div>
                     </div>
                   );
                 })}
               </div>
 
-              {/* Spell History */}
               <div className="space-y-2">
                 <h3 className="font-cinzel text-primary text-xs uppercase tracking-widest">Recent Spells</h3>
                 <AnimatePresence>
@@ -392,22 +431,12 @@ export default function Room() {
                     <p className="text-xs text-muted-foreground font-cinzel italic">No spells cast yet...</p>
                   )}
                   {spellHistory.map((entry, i) => (
-                    <motion.div
-                      key={`${entry.name}-${entry.timestamp}`}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -20 }}
+                    <motion.div key={`${entry.name}-${entry.timestamp}`}
+                      initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
                       transition={{ duration: 0.2 }}
                       className="flex items-center gap-2 px-2 py-1 rounded-full text-xs font-cinzel"
-                      style={{
-                        background: `${entry.color}18`,
-                        border: `1px solid ${entry.color}40`,
-                        color: entry.color,
-                        opacity: 1 - i * 0.15,
-                      }}
-                    >
-                      <span>{entry.icon}</span>
-                      <span>{entry.name}</span>
+                      style={{ background: `${entry.color}18`, border: `1px solid ${entry.color}40`, color: entry.color, opacity: 1 - i * 0.15 }}>
+                      <span>{entry.icon}</span><span>{entry.name}</span>
                     </motion.div>
                   ))}
                 </AnimatePresence>
@@ -416,36 +445,27 @@ export default function Room() {
           )}
         </AnimatePresence>
 
-        {/* Sidebar toggle button */}
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-20 parchment rounded-r-lg p-1.5 border-r border-y border-primary/30 shadow-lg"
-          style={{ left: sidebarOpen ? '288px' : '0px', transition: 'left 0.3s' }}
-        >
-          {sidebarOpen ? <LuChevronLeft className="w-4 h-4 text-primary" /> : <LuChevronRight className="w-4 h-4 text-primary" />}
-        </button>
+        {/* Sidebar toggle */}
+        {!isMobile && (
+          <button onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-20 parchment rounded-r-lg p-1.5 border-r border-y border-primary/30 shadow-lg"
+            style={{ left: sidebarOpen ? '288px' : '0px', transition: 'left 0.3s' }}>
+            {sidebarOpen ? <LuChevronLeft className="w-4 h-4 text-primary" /> : <LuChevronRight className="w-4 h-4 text-primary" />}
+          </button>
+        )}
 
-        {/* ─── MAIN VIDEO AREA ───────────────────────────────────── */}
-        <main className="flex-1 p-3 md:p-4 flex flex-col md:flex-row gap-4 relative z-0 overflow-hidden">
-          {/* Local video tile */}
-          <div className="flex-1 relative h-full min-h-[200px] md:min-h-0">
+        {/* ─── MAIN VIDEO AREA ───────────────────────────────── */}
+        <main className={`flex-1 p-3 md:p-4 ${isMobile ? 'flex flex-col' : 'flex flex-col md:flex-row'} gap-4 relative z-0 overflow-hidden`}>
+          {/* Local video */}
+          <div className={`relative ${isMobile ? 'h-[50vh]' : 'flex-1 h-full min-h-[200px] md:min-h-0'}`}>
             {!localStream && (
               <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
-                <LuWand2 className="w-8 h-8 text-primary mb-2" style={{ animation: 'spin 2s linear infinite' }} />
+                <LuWand className="w-8 h-8 text-primary mb-2" style={{ animation: 'spin 2s linear infinite' }} />
                 <p className="font-cinzel text-sm text-muted-foreground">Summoning your magical presence...</p>
               </div>
             )}
-            <VideoTile
-              stream={localStream}
-              muted={true}
-              label="You"
-              wizardName={wizardName}
-              house={house}
-              className="w-full h-full"
-              isSpellActive={!!currentSpell}
-              spellColor={currentSpellData?.color}
-              isAudioActive={isAudioEnabled && !!localStream}
-            />
+            <VideoTile stream={localStream} muted={true} label="You" wizardName={wizardName} house={house}
+              className="w-full h-full" isSpellActive={!!currentSpell} spellColor={currentSpellData?.color} isAudioActive={isAudioEnabled && !!localStream} />
             {localStream && (
               <div className="absolute inset-0 rounded-xl overflow-hidden pointer-events-none">
                 <SpellOverlay landmarks={landmarks} currentSpell={currentSpell} />
@@ -454,155 +474,150 @@ export default function Room() {
             {currentGesture && !currentSpell && (() => {
               const spell = SPELLS.find(s => s.gesture === currentGesture);
               return spell ? (
-                <div
-                  className="absolute bottom-3 left-3 flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-cinzel tracking-wide z-30 pointer-events-none"
-                  style={{
-                    color: spell.color,
-                    background: `${spell.color}18`,
-                    border: `1px solid ${spell.color}55`,
-                    animation: 'gesturePulse 1s ease-in-out infinite',
-                  }}
-                >
-                  <span>{spell.icon}</span>
-                  <span>{spell.name}</span>
+                <div className="absolute bottom-3 left-3 flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-cinzel tracking-wide z-30 pointer-events-none"
+                  style={{ color: spell.color, background: `${spell.color}18`, border: `1px solid ${spell.color}55`, animation: 'gesturePulse 1s ease-in-out infinite' }}>
+                  <span>{spell.icon}</span><span>{spell.name}</span>
                 </div>
               ) : null;
             })()}
           </div>
 
-          {/* Remote video tile */}
-          <div className="flex-1 relative h-full min-h-[200px] md:min-h-0">
-            <VideoTile
-              stream={remoteStream}
-              label="Remote Wizard"
-              house=""
+          {/* Remote video */}
+          <div className={`relative ${isMobile ? 'h-[50vh]' : 'flex-1 h-full min-h-[200px] md:min-h-0'}`}>
+            <VideoTile stream={remoteStream} label="Remote Wizard" house=""
               className="w-full h-full"
-              style={settings.videoBlur && remoteStream ? { filter: 'blur(4px)' } : undefined}
-            />
+              style={settings.videoBlur && remoteStream ? { filter: 'blur(4px)' } : undefined} />
           </div>
         </main>
+
+        {/* Chat drawer */}
+        <ChatDrawer
+          open={chatOpen}
+          onClose={() => { setChatOpen(false); setUnreadCount(0); }}
+          messages={chatMessages}
+          onSend={sendChatMessage}
+          wizardName={wizardName}
+        />
       </div>
 
-      {/* ─── FLOATING CONTROLS PILL ────────────────────────────── */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-3">
-        <div className="flex items-center gap-2 parchment px-4 py-2.5 rounded-full magic-border shadow-2xl">
-          {/* Audio */}
-          <Button
-            variant={isAudioEnabled ? 'ghost' : 'destructive'}
-            size="icon"
-            onClick={toggleAudio}
-            className={`rounded-full h-10 w-10 ${isAudioEnabled ? 'text-primary hover:bg-primary/20' : ''}`}
-          >
+      {/* ─── FLOATING CONTROLS ─────────────────────────────── */}
+      {isMobile ? (
+        <div className="fixed bottom-0 left-0 right-0 z-30 flex items-center justify-around px-4 py-3"
+          style={{ background: 'rgba(5,4,15,0.95)', borderTop: '1px solid rgba(212,175,55,0.2)', backdropFilter: 'blur(12px)' }}>
+          <Button variant={isAudioEnabled ? 'ghost' : 'destructive'} size="icon"
+            onClick={toggleAudio} className={`rounded-full h-10 w-10 ${isAudioEnabled ? 'text-primary hover:bg-primary/20' : ''}`}>
             {isAudioEnabled ? <LuMic className="w-4 h-4" /> : <LuMicOff className="w-4 h-4" />}
           </Button>
-
-          {/* Video */}
-          <Button
-            variant={isVideoEnabled ? 'ghost' : 'destructive'}
-            size="icon"
-            onClick={toggleVideo}
-            className={`rounded-full h-10 w-10 ${isVideoEnabled ? 'text-primary hover:bg-primary/20' : ''}`}
-          >
+          <Button variant={isVideoEnabled ? 'ghost' : 'destructive'} size="icon"
+            onClick={toggleVideo} className={`rounded-full h-10 w-10 ${isVideoEnabled ? 'text-primary hover:bg-primary/20' : ''}`}>
             {isVideoEnabled ? <LuVideo className="w-4 h-4" /> : <LuVideoOff className="w-4 h-4" />}
           </Button>
-
-          <div className="w-px h-6 bg-primary/20 mx-1" />
-
-          {/* Screen share */}
-          <Button
-            variant={isScreenSharing ? 'default' : 'ghost'}
-            size="icon"
-            onClick={toggleScreenShare}
-            disabled={connectionStatus !== 'connected'}
-            className={`rounded-full h-10 w-10 ${isScreenSharing ? 'bg-primary text-black' : 'text-primary hover:bg-primary/20'}`}
-            title="Share screen"
-          >
-            <LuMonitor className="w-4 h-4" />
+          <Button variant="ghost" size="icon" onClick={() => setMobileSpellOpen(true)}
+            className="rounded-full h-10 w-10 text-primary hover:bg-primary/20" title="Cast Spell">
+            <LuWand className="w-4 h-4" />
           </Button>
-
-          {/* Drawing board */}
-          <Button
-            variant={drawingMode ? 'default' : 'ghost'}
-            size="icon"
-            onClick={() => setDrawingMode(!drawingMode)}
-            disabled={connectionStatus !== 'connected'}
-            className={`rounded-full h-10 w-10 ${drawingMode ? 'bg-primary text-black glow-gold' : 'text-primary hover:bg-primary/20'}`}
-            title="Magical Drawing"
-          >
-            <LuPenTool className="w-4 h-4" />
+          <Button variant="ghost" size="icon" onClick={() => { setChatOpen(!chatOpen); setUnreadCount(0); }}
+            className="rounded-full h-10 w-10 text-primary hover:bg-primary/20 relative">
+            <LuMessageSquare className="w-4 h-4" />
+            {unreadCount > 0 && (
+              <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 rounded-full text-[9px] flex items-center justify-center font-bold">{unreadCount}</span>
+            )}
           </Button>
-
-          <div className="w-px h-6 bg-primary/20 mx-1" />
-
-          {/* Emoji reactions */}
-          <div className="relative">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setReactionPopoverOpen(!reactionPopoverOpen)}
-              className="rounded-full h-10 w-10 text-primary hover:bg-primary/20"
-              title="Reactions"
-            >
-              <LuSmile className="w-4 h-4" />
-            </Button>
-            <AnimatePresence>
-              {reactionPopoverOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: 8, scale: 0.9 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 8, scale: 0.9 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute bottom-12 left-1/2 -translate-x-1/2 parchment p-2 rounded-2xl magic-border shadow-2xl flex gap-1 flex-wrap justify-center"
-                  style={{ width: '180px' }}
-                >
-                  {REACTION_EMOJIS.map(emoji => (
-                    <button
-                      key={emoji}
-                      onClick={() => sendReaction(emoji)}
-                      className="text-2xl p-1 rounded-lg hover:bg-primary/20 transition-colors"
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* Sound effects */}
-          <Button
-            variant={soundEnabled ? 'ghost' : 'ghost'}
-            size="icon"
-            onClick={() => setSoundEnabled(!soundEnabled)}
-            className={`rounded-full h-10 w-10 ${soundEnabled ? 'text-primary hover:bg-primary/20' : 'text-muted-foreground hover:bg-primary/10'}`}
-            title={soundEnabled ? 'Disable spell sounds' : 'Enable spell sounds'}
-          >
-            {soundEnabled ? <LuVolume2 className="w-4 h-4" /> : <LuVolumeX className="w-4 h-4" />}
+          <Button variant="ghost" onClick={leaveRoom}
+            className="text-destructive hover:bg-destructive/20 rounded-full h-10 w-10 p-0 flex items-center justify-center">
+            <LuDoorOpen className="w-4 h-4" />
           </Button>
         </div>
-
-        {/* Spell panel */}
-        {settings.spellPanelVisible && (
-          <div className="overflow-x-auto max-w-[calc(100vw-2rem)]">
-            <SpellPanel
-              currentSpell={currentSpell}
-              spells={SPELLS}
-              cooldowns={cooldowns}
-              onSpellCast={() => {}}
-              visible={settings.spellPanelVisible}
-            />
+      ) : (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-3">
+          <div className="flex items-center gap-2 parchment px-4 py-2.5 rounded-full magic-border shadow-2xl">
+            <Button variant={isAudioEnabled ? 'ghost' : 'destructive'} size="icon" onClick={toggleAudio}
+              className={`rounded-full h-10 w-10 ${isAudioEnabled ? 'text-primary hover:bg-primary/20' : ''}`}>
+              {isAudioEnabled ? <LuMic className="w-4 h-4" /> : <LuMicOff className="w-4 h-4" />}
+            </Button>
+            <Button variant={isVideoEnabled ? 'ghost' : 'destructive'} size="icon" onClick={toggleVideo}
+              className={`rounded-full h-10 w-10 ${isVideoEnabled ? 'text-primary hover:bg-primary/20' : ''}`}>
+              {isVideoEnabled ? <LuVideo className="w-4 h-4" /> : <LuVideoOff className="w-4 h-4" />}
+            </Button>
+            <div className="w-px h-6 bg-primary/20 mx-1" />
+            <Button variant={isScreenSharing ? 'default' : 'ghost'} size="icon" onClick={toggleScreenShare}
+              disabled={connectionStatus !== 'connected'}
+              className={`rounded-full h-10 w-10 ${isScreenSharing ? 'bg-primary text-black' : 'text-primary hover:bg-primary/20'}`}>
+              <LuMonitor className="w-4 h-4" />
+            </Button>
+            <Button variant={drawingMode ? 'default' : 'ghost'} size="icon" onClick={() => setDrawingMode(!drawingMode)}
+              disabled={connectionStatus !== 'connected'}
+              className={`rounded-full h-10 w-10 ${drawingMode ? 'bg-primary text-black glow-gold' : 'text-primary hover:bg-primary/20'}`}>
+              <LuPenTool className="w-4 h-4" />
+            </Button>
+            <div className="w-px h-6 bg-primary/20 mx-1" />
+            <div className="relative">
+              <Button variant="ghost" size="icon" onClick={() => setReactionPopoverOpen(!reactionPopoverOpen)}
+                className="rounded-full h-10 w-10 text-primary hover:bg-primary/20">
+                <LuSmile className="w-4 h-4" />
+              </Button>
+              <AnimatePresence>
+                {reactionPopoverOpen && (
+                  <motion.div initial={{ opacity: 0, y: 8, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 8, scale: 0.9 }} transition={{ duration: 0.15 }}
+                    className="absolute bottom-12 left-1/2 -translate-x-1/2 parchment p-2 rounded-2xl magic-border shadow-2xl flex gap-1 flex-wrap justify-center"
+                    style={{ width: '180px' }}>
+                    {REACTION_EMOJIS.map(emoji => (
+                      <button key={emoji} onClick={() => sendReaction(emoji)} className="text-2xl p-1 rounded-lg hover:bg-primary/20 transition-colors">{emoji}</button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+            {/* Chat toggle */}
+            <Button variant="ghost" size="icon" onClick={() => { setChatOpen(!chatOpen); setUnreadCount(0); }}
+              className="rounded-full h-10 w-10 text-primary hover:bg-primary/20 relative" title="Chat">
+              <LuMessageSquare className="w-4 h-4" />
+              {unreadCount > 0 && (
+                <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 rounded-full text-[9px] flex items-center justify-center font-bold">{unreadCount}</span>
+              )}
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => setSoundEnabled(!soundEnabled)}
+              className={`rounded-full h-10 w-10 ${soundEnabled ? 'text-primary hover:bg-primary/20' : 'text-muted-foreground hover:bg-primary/10'}`}>
+              {soundEnabled ? <LuVolume2 className="w-4 h-4" /> : <LuVolumeX className="w-4 h-4" />}
+            </Button>
           </div>
-        )}
-      </div>
 
-      {/* Drawing board overlay */}
+          {settings.spellPanelVisible && (
+            <div className="overflow-x-auto max-w-[calc(100vw-2rem)]">
+              <SpellPanel currentSpell={currentSpell} spells={SPELLS} cooldowns={cooldowns}
+                onSpellCast={castSpellManually} visible={settings.spellPanelVisible} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Mobile spell bottom sheet */}
+      <AnimatePresence>
+        {mobileSpellOpen && (
+          <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 24 }}
+            className="fixed inset-x-0 bottom-0 z-40 parchment rounded-t-2xl magic-border shadow-2xl"
+            style={{ maxHeight: '70vh', overflow: 'auto' }}>
+            <div className="flex items-center justify-between px-4 pt-4 pb-2">
+              <span className="font-harry text-primary">Cast a Spell</span>
+              <button onClick={() => setMobileSpellOpen(false)} className="text-muted-foreground text-lg">✕</button>
+            </div>
+            <div className="overflow-x-auto px-2 pb-4">
+              <SpellPanel currentSpell={currentSpell} spells={SPELLS} cooldowns={cooldowns}
+                onSpellCast={castSpellManually} visible={true} />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <DrawingBoard dataChannel={dataChannel} isVisible={drawingMode} onClose={() => setDrawingMode(false)} />
 
-      {/* Settings modal */}
       <SettingsPanel
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
         onSettingsChange={s => { setSettings(s); setSoundEnabled(s.spellSoundsEnabled); }}
+        onShowGestureTutorial={() => setShowGestureTutorial(true)}
       />
     </div>
   );
