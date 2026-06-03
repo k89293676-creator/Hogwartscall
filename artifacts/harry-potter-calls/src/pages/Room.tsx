@@ -93,6 +93,8 @@ export default function Room() {
   const [connectionRtt, setConnectionRtt] = useState<number | null>(null);
   const [showGestureTutorial, setShowGestureTutorial] = useState(false);
   const [mobileSpellOpen, setMobileSpellOpen] = useState(false);
+  const [mediaError, setMediaError] = useState<{ message: string; canRetry: boolean } | null>(null);
+  const [mediaRetryKey, setMediaRetryKey] = useState(0);
   const isMobile = window.innerWidth < 768;
 
   const reactionIdRef = useRef(0);
@@ -118,23 +120,122 @@ export default function Room() {
     return () => { if (house) document.body.classList.remove(`house-${house}`); };
   }, [house]);
 
-  // Init media
+  // Init media — robust cross-browser/device version with progressive fallbacks
   useEffect(() => {
     let mounted = true;
-    const initMedia = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        if (!mounted) { stream.getTracks().forEach(t => t.stop()); return; }
-        setLocalStream(stream);
-        socket.emit('join-room', roomId);
-      } catch (err) {
-        console.error('Failed to get media devices', err);
-        alert('Please allow camera and microphone access to use the Floo Network.');
+
+    // Resolve getUserMedia across modern and legacy browsers
+    const tryGetUserMedia = (constraints: MediaStreamConstraints): Promise<MediaStream> => {
+      // Standard modern API
+      if (navigator.mediaDevices?.getUserMedia) {
+        return navigator.mediaDevices.getUserMedia(constraints);
       }
+      // Legacy prefixed API (old Safari / Firefox / Chrome)
+      const legacyGUM =
+        (navigator as any).getUserMedia ||
+        (navigator as any).webkitGetUserMedia ||
+        (navigator as any).mozGetUserMedia ||
+        (navigator as any).msGetUserMedia;
+      if (legacyGUM) {
+        return new Promise<MediaStream>((resolve, reject) =>
+          legacyGUM.call(navigator, constraints, resolve, reject)
+        );
+      }
+      return Promise.reject(new TypeError('getUserMedia_unsupported'));
     };
+
+    const initMedia = async () => {
+      // Guard: API completely absent (plain HTTP on non-localhost, very old browser)
+      const hasGUM =
+        navigator.mediaDevices?.getUserMedia ||
+        (navigator as any).getUserMedia ||
+        (navigator as any).webkitGetUserMedia ||
+        (navigator as any).mozGetUserMedia;
+      if (!hasGUM) {
+        setMediaError({
+          message:
+            'Camera access is not available. This page must be opened over HTTPS, or your browser is too old. Please try Chrome or Firefox.',
+          canRetry: false,
+        });
+        return;
+      }
+
+      setMediaError(null);
+
+      // Progressive constraint ladder — stop at first success
+      const constraintLadder: MediaStreamConstraints[] = [
+        // 1. Ideal HD, front-facing on mobile
+        { video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: true },
+        // 2. Front-facing, no size preference
+        { video: { facingMode: 'user' }, audio: true },
+        // 3. Any video + audio
+        { video: true, audio: true },
+        // 4. Audio-only (camera unavailable / denied)
+        { video: false, audio: true },
+      ];
+
+      let stream: MediaStream | null = null;
+      let lastErr: unknown;
+
+      for (const constraints of constraintLadder) {
+        try {
+          stream = await tryGetUserMedia(constraints);
+          break;
+        } catch (err) {
+          lastErr = err;
+          const name = (err as DOMException)?.name;
+          // Permission denied — no point trying softer constraints
+          if (name === 'NotAllowedError' || name === 'PermissionDeniedError') break;
+          // API unsupported — bail immediately
+          if (err instanceof TypeError) break;
+          // Device busy — softer constraints won't help
+          if (name === 'NotReadableError' || name === 'TrackStartError') break;
+          // NotFoundError / OverconstrainedError — try next (simpler) constraints
+        }
+      }
+
+      if (!mounted) { stream?.getTracks().forEach(t => t.stop()); return; }
+
+      if (!stream) {
+        const err = lastErr as DOMException | TypeError | undefined;
+        const name = (err as DOMException)?.name ?? '';
+        let message: string;
+        let canRetry = true;
+
+        if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+          message =
+            'Camera or microphone access was denied. Click the 🔒 lock icon in your browser\'s address bar, allow camera & microphone, then tap "Try Again".';
+        } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+          message =
+            'No camera or microphone was found. Please connect a device and tap "Try Again".';
+        } else if (name === 'NotReadableError' || name === 'TrackStartError') {
+          message =
+            'Your camera or microphone is already in use by another app. Close that app and tap "Try Again".';
+        } else if (name === 'OverconstrainedError' || name === 'ConstraintNotSatisfiedError') {
+          message =
+            'Your camera does not support the required settings. Please try a different browser or device.';
+          canRetry = false;
+        } else if (err instanceof TypeError || (err as DOMException)?.message === 'getUserMedia_unsupported') {
+          message =
+            'Your browser does not support camera access. Please use an up-to-date version of Chrome, Firefox, or Safari over HTTPS.';
+          canRetry = false;
+        } else {
+          message = `Could not access camera or microphone: ${(err as DOMException)?.message || 'Unknown error'}. Please check your browser permissions and tap "Try Again".`;
+        }
+
+        console.error('[media]', name, err);
+        setMediaError({ message, canRetry });
+        return;
+      }
+
+      setLocalStream(stream);
+      socket.emit('join-room', roomId);
+    };
+
     initMedia();
     return () => { mounted = false; };
-  }, [roomId, socket, setLocalStream]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId, socket, setLocalStream, mediaRetryKey]);
 
   useEffect(() => {
     return () => { if (localStream) localStream.getTracks().forEach(t => t.stop()); };
@@ -459,9 +560,28 @@ export default function Room() {
           {/* Local video */}
           <div className={`relative ${isMobile ? 'h-[50vh]' : 'flex-1 h-full min-h-[200px] md:min-h-0'}`}>
             {!localStream && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
-                <LuWand className="w-8 h-8 text-primary mb-2" style={{ animation: 'spin 2s linear infinite' }} />
-                <p className="font-cinzel text-sm text-muted-foreground">Summoning your magical presence...</p>
+              <div className="absolute inset-0 flex flex-col items-center justify-center z-10 p-4 text-center">
+                {mediaError ? (
+                  <div className="space-y-3 max-w-xs">
+                    <div className="text-4xl">🔒</div>
+                    <p className="font-cinzel text-xs leading-relaxed" style={{ color: '#f87171' }}>
+                      {mediaError.message}
+                    </p>
+                    {mediaError.canRetry && (
+                      <button
+                        onClick={() => setMediaRetryKey(k => k + 1)}
+                        className="font-cinzel text-xs px-4 py-2 rounded-full border border-primary/50 text-primary hover:bg-primary/10 transition-colors"
+                      >
+                        🪄 Try Again
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <LuWand className="w-8 h-8 text-primary mb-2" style={{ animation: 'spin 2s linear infinite' }} />
+                    <p className="font-cinzel text-sm text-muted-foreground">Summoning your magical presence...</p>
+                  </>
+                )}
               </div>
             )}
             <VideoTile stream={localStream} muted={true} label="You" wizardName={wizardName} house={house}
