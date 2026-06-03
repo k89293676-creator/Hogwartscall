@@ -24,7 +24,7 @@ export default function Room() {
   const [drawingMode, setDrawingMode] = useState(false);
   const [isInRoom, setIsInRoom] = useState(false);
 
-  const { localStream, remoteStream, dataChannel, connectionStatus, initiateCall, setLocalStream } = useWebRTC(socket, roomId!);
+  const { localStream, remoteStream, dataChannel, connectionStatus, setLocalStream } = useWebRTC(socket, roomId!);
   const { landmarks, currentGesture } = useGesture(localStream);
   const { currentSpell, cooldowns } = useSpells(currentGesture);
 
@@ -140,6 +140,24 @@ export default function Room() {
               />
             </div>
           )}
+          {/* Live gesture indicator */}
+          {currentGesture && !currentSpell && (() => {
+            const spell = SPELLS.find(s => s.gesture === currentGesture);
+            return spell ? (
+              <div
+                className="absolute bottom-3 left-3 flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-cinzel tracking-wide z-30 pointer-events-none"
+                style={{
+                  color: spell.color,
+                  background: `${spell.color}18`,
+                  border: `1px solid ${spell.color}55`,
+                  animation: 'gesturePulse 1s ease-in-out infinite',
+                }}
+              >
+                <span>{spell.icon}</span>
+                <span>{spell.name}</span>
+              </div>
+            ) : null;
+          })()}
         </div>
 
         <div className="flex-1 relative h-full min-h-[300px]">
