@@ -4,13 +4,39 @@ services:
     env: node
     region: oregon
     plan: free
+    autoDeploy: true
+    branch: main
+
+    nodeVersion: "20"
+
     buildCommand: >
-      npm install -g pnpm &&
+      npm install -g pnpm@latest --prefer-offline &&
       pnpm install --frozen-lockfile &&
       pnpm --filter @workspace/harry-potter-calls run build &&
       pnpm --filter @workspace/api-server run build
+
     startCommand: node artifacts/api-server/dist/index.mjs
+
     healthCheckPath: /api/healthz
+
+    buildFilter:
+      paths:
+        - artifacts/harry-potter-calls/src/**
+        - artifacts/harry-potter-calls/public/**
+        - artifacts/harry-potter-calls/index.html
+        - artifacts/harry-potter-calls/vite.config.ts
+        - artifacts/harry-potter-calls/package.json
+        - artifacts/harry-potter-calls/tsconfig.json
+        - artifacts/api-server/src/**
+        - artifacts/api-server/build.mjs
+        - artifacts/api-server/package.json
+        - artifacts/api-server/tsconfig.json
+        - lib/**
+        - pnpm-lock.yaml
+        - pnpm-workspace.yaml
+        - package.json
+        - render.yaml
+
     envVars:
       - key: NODE_ENV
         value: production
