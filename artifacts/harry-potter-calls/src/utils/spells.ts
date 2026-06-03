@@ -2,13 +2,92 @@ export interface Spell {
   name: string;
   gesture: string;
   color: string;
+  glowColor: string;
   description: string;
   soundFile: string;
+  icon: string;
+  house: string;
 }
 
 export const SPELLS: Spell[] = [
-  { name: 'Lumos', gesture: 'lumos', color: '#FFD700', description: 'Open palm', soundFile: '/sounds/lumos.mp3' },
-  { name: 'Incendio', gesture: 'incendio', color: '#FF4500', description: 'Make a fist', soundFile: '/sounds/incendio.mp3' },
-  { name: 'Expelliarmus', gesture: 'expelliarmus', color: '#4169E1', description: 'Point index finger', soundFile: '/sounds/expelliarmus.mp3' },
-  { name: 'Wingardium Leviosa', gesture: 'wingardium', color: '#32CD32', description: 'L-shape (thumb+index)', soundFile: '/sounds/wingardium.mp3' },
+  {
+    name: 'Lumos',
+    gesture: 'lumos',
+    color: '#FFD700',
+    glowColor: 'rgba(255,215,0,0.5)',
+    description: 'Open palm',
+    soundFile: '/sounds/lumos.mp3',
+    icon: '☀',
+    house: 'hufflepuff',
+  },
+  {
+    name: 'Incendio',
+    gesture: 'incendio',
+    color: '#FF4500',
+    glowColor: 'rgba(255,69,0,0.5)',
+    description: 'Make a fist',
+    soundFile: '/sounds/incendio.mp3',
+    icon: '🔥',
+    house: 'gryffindor',
+  },
+  {
+    name: 'Expelliarmus',
+    gesture: 'expelliarmus',
+    color: '#DC143C',
+    glowColor: 'rgba(220,20,60,0.5)',
+    description: 'Point index finger',
+    soundFile: '/sounds/expelliarmus.mp3',
+    icon: '⚡',
+    house: 'gryffindor',
+  },
+  {
+    name: 'Wingardium Leviosa',
+    gesture: 'wingardium',
+    color: '#32CD32',
+    glowColor: 'rgba(50,205,50,0.5)',
+    description: 'L-shape (thumb+index)',
+    soundFile: '/sounds/wingardium.mp3',
+    icon: '✦',
+    house: 'ravenclaw',
+  },
+  {
+    name: 'Patronus',
+    gesture: 'patronus',
+    color: '#A8D8F0',
+    glowColor: 'rgba(168,216,240,0.6)',
+    description: 'Peace sign (index+middle)',
+    soundFile: '/sounds/patronus.mp3',
+    icon: '✦',
+    house: 'gryffindor',
+  },
+  {
+    name: 'Accio',
+    gesture: 'accio',
+    color: '#9B59B6',
+    glowColor: 'rgba(155,89,182,0.5)',
+    description: 'Pinky out (shaka sign)',
+    soundFile: '/sounds/accio.mp3',
+    icon: '◈',
+    house: 'ravenclaw',
+  },
+  {
+    name: 'Stupefy',
+    gesture: 'stupefy',
+    color: '#FF1493',
+    glowColor: 'rgba(255,20,147,0.6)',
+    description: 'Three fingers up',
+    soundFile: '/sounds/stupefy.mp3',
+    icon: '★',
+    house: 'slytherin',
+  },
+  {
+    name: 'Protego',
+    gesture: 'protego',
+    color: '#00BFFF',
+    glowColor: 'rgba(0,191,255,0.5)',
+    description: 'Rock sign (index+pinky)',
+    soundFile: '/sounds/protego.mp3',
+    icon: '◉',
+    house: 'ravenclaw',
+  },
 ];
