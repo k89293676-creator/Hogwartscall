@@ -21,6 +21,7 @@ import {
   LuMic, LuMicOff, LuVideo, LuVideoOff, LuPenTool,
   LuDoorOpen, LuChevronLeft, LuChevronRight, LuCopy, LuSettings,
   LuMonitor, LuSmile, LuVolume2, LuVolumeX, LuWand, LuMessageSquare,
+  LuShare2, LuLink, LuX,
 } from 'react-icons/lu';
 import { useToast } from '@/hooks/use-toast';
 
@@ -95,7 +96,8 @@ export default function Room() {
   const [mobileSpellOpen, setMobileSpellOpen] = useState(false);
   const [mediaError, setMediaError] = useState<{ message: string; canRetry: boolean } | null>(null);
   const [mediaRetryKey, setMediaRetryKey] = useState(0);
-  const isMobile = window.innerWidth < 768;
+  const [shareOpen, setShareOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
 
   const reactionIdRef = useRef(0);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -104,6 +106,13 @@ export default function Room() {
   const { localStream, remoteStream, dataChannel, connectionStatus, setLocalStream, peerConnectionRef } = useWebRTC(socket, roomId!);
   const { landmarks, currentGesture } = useGesture(localStream);
   const { currentSpell, cooldowns, castSpell } = useSpells(currentGesture);
+
+  // Reactive isMobile — updates on resize
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   // Show gesture tutorial on first visit
   useEffect(() => {
@@ -407,6 +416,30 @@ export default function Room() {
     });
   };
 
+  // Build a clean shareable join link (no personal name/house params)
+  const shareUrl = `${window.location.origin}/room/${roomId}`;
+
+  const copyShareLink = () => {
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      toast({ title: '✨ Link copied!', description: 'Share it with any wizard to join.' });
+    });
+  };
+
+  const shareRoom = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Join my Floo Network room: ${roomId}`,
+          text: `Join me in the Floo Network! Room: ${roomId}`,
+          url: shareUrl,
+        });
+        return;
+      } catch { /* user cancelled */ }
+    }
+    // Fallback: open sheet
+    setShareOpen(true);
+  };
+
   const getStatusColor = () => {
     switch (connectionStatus) {
       case 'connected': return '#4ade80';
@@ -461,11 +494,25 @@ export default function Room() {
           </div>
         </div>
 
-        <h1 className="font-harry text-xl gold-shimmer-text tracking-wider hidden md:block">Room: {roomId}</h1>
+        {/* Room ID — always visible, truncated on mobile */}
+        <button
+          onClick={() => setShareOpen(true)}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-primary/30 hover:border-primary/60 hover:bg-primary/10 transition-all group"
+          title="Share room"
+        >
+          <span className="font-cinzel text-xs gold-shimmer-text tracking-wide max-w-[90px] md:max-w-[200px] truncate">
+            {roomId}
+          </span>
+          <LuShare2 className="w-3 h-3 text-primary/60 group-hover:text-primary flex-shrink-0 transition-colors" />
+        </button>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" onClick={shareRoom}
+            className="text-primary hover:text-primary hover:bg-primary/20" title="Share room link">
+            <LuShare2 className="w-4 h-4" />
+          </Button>
           <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)}
-            className="text-primary hover:text-primary hover:bg-primary/20">
+            className="text-primary hover:text-primary hover:bg-primary/20 hidden md:flex">
             <LuSettings className="w-4 h-4" />
           </Button>
           <Button variant="ghost" onClick={leaveRoom}
@@ -495,7 +542,7 @@ export default function Room() {
                 </div>
                 {/* QR Code */}
                 <div className="flex flex-col items-center gap-1 bg-black/20 rounded-xl p-3 mt-2">
-                  <QRCodeSVG value={window.location.href} size={120} bgColor="transparent" fgColor="#D4AF37" />
+                  <QRCodeSVG value={shareUrl} size={120} bgColor="transparent" fgColor="#D4AF37" />
                   <span className="font-cinzel text-[9px] text-muted-foreground uppercase tracking-widest mt-1">Scan to join</span>
                 </div>
               </div>
@@ -546,19 +593,18 @@ export default function Room() {
           )}
         </AnimatePresence>
 
-        {/* Sidebar toggle */}
-        {!isMobile && (
-          <button onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-20 parchment rounded-r-lg p-1.5 border-r border-y border-primary/30 shadow-lg"
-            style={{ left: sidebarOpen ? '288px' : '0px', transition: 'left 0.3s' }}>
-            {sidebarOpen ? <LuChevronLeft className="w-4 h-4 text-primary" /> : <LuChevronRight className="w-4 h-4 text-primary" />}
-          </button>
-        )}
+        {/* Sidebar toggle — visible on all screen sizes */}
+        <button onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-20 parchment rounded-r-lg p-1.5 border-r border-y border-primary/30 shadow-lg"
+          style={{ left: sidebarOpen ? '288px' : '0px', transition: 'left 0.3s' }}>
+          {sidebarOpen ? <LuChevronLeft className="w-4 h-4 text-primary" /> : <LuChevronRight className="w-4 h-4 text-primary" />}
+        </button>
 
         {/* ─── MAIN VIDEO AREA ───────────────────────────────── */}
-        <main className={`flex-1 p-3 md:p-4 ${isMobile ? 'flex flex-col' : 'flex flex-col md:flex-row'} gap-4 relative z-0 overflow-hidden`}>
+        {/* On mobile the bottom bar is ~68px; we give each video flex-1 so they share the remaining height equally */}
+        <main className={`flex-1 p-2 md:p-4 flex flex-col md:flex-row gap-2 md:gap-4 relative z-0 overflow-hidden ${isMobile ? 'pb-[68px]' : ''}`}>
           {/* Local video */}
-          <div className={`relative ${isMobile ? 'h-[50vh]' : 'flex-1 h-full min-h-[200px] md:min-h-0'}`}>
+          <div className="relative flex-1 min-h-0">
             {!localStream && (
               <div className="absolute inset-0 flex flex-col items-center justify-center z-10 p-4 text-center">
                 {mediaError ? (
@@ -603,7 +649,7 @@ export default function Room() {
           </div>
 
           {/* Remote video */}
-          <div className={`relative ${isMobile ? 'h-[50vh]' : 'flex-1 h-full min-h-[200px] md:min-h-0'}`}>
+          <div className="relative flex-1 min-h-0">
             <VideoTile stream={remoteStream} label="Remote Wizard" house=""
               className="w-full h-full"
               style={settings.videoBlur && remoteStream ? { filter: 'blur(4px)' } : undefined} />
@@ -622,8 +668,15 @@ export default function Room() {
 
       {/* ─── FLOATING CONTROLS ─────────────────────────────── */}
       {isMobile ? (
-        <div className="fixed bottom-0 left-0 right-0 z-30 flex items-center justify-around px-4 py-3"
-          style={{ background: 'rgba(5,4,15,0.95)', borderTop: '1px solid rgba(212,175,55,0.2)', backdropFilter: 'blur(12px)' }}>
+        <div
+          className="fixed bottom-0 left-0 right-0 z-30 flex items-center justify-around px-3 pt-2"
+          style={{
+            background: 'rgba(5,4,15,0.96)',
+            borderTop: '1px solid rgba(212,175,55,0.2)',
+            backdropFilter: 'blur(16px)',
+            paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
+          }}
+        >
           <Button variant={isAudioEnabled ? 'ghost' : 'destructive'} size="icon"
             onClick={toggleAudio} className={`rounded-full h-10 w-10 ${isAudioEnabled ? 'text-primary hover:bg-primary/20' : ''}`}>
             {isAudioEnabled ? <LuMic className="w-4 h-4" /> : <LuMicOff className="w-4 h-4" />}
@@ -632,9 +685,9 @@ export default function Room() {
             onClick={toggleVideo} className={`rounded-full h-10 w-10 ${isVideoEnabled ? 'text-primary hover:bg-primary/20' : ''}`}>
             {isVideoEnabled ? <LuVideo className="w-4 h-4" /> : <LuVideoOff className="w-4 h-4" />}
           </Button>
-          <Button variant="ghost" size="icon" onClick={() => setMobileSpellOpen(true)}
-            className="rounded-full h-10 w-10 text-primary hover:bg-primary/20" title="Cast Spell">
-            <LuWand className="w-4 h-4" />
+          <Button variant="ghost" size="icon" onClick={shareRoom}
+            className="rounded-full h-10 w-10 text-primary hover:bg-primary/20" title="Share room">
+            <LuShare2 className="w-4 h-4" />
           </Button>
           <Button variant="ghost" size="icon" onClick={() => { setChatOpen(!chatOpen); setUnreadCount(0); }}
             className="rounded-full h-10 w-10 text-primary hover:bg-primary/20 relative">
@@ -642,6 +695,10 @@ export default function Room() {
             {unreadCount > 0 && (
               <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 rounded-full text-[9px] flex items-center justify-center font-bold">{unreadCount}</span>
             )}
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)}
+            className="rounded-full h-10 w-10 text-primary hover:bg-primary/20">
+            <LuSettings className="w-4 h-4" />
           </Button>
           <Button variant="ghost" onClick={leaveRoom}
             className="text-destructive hover:bg-destructive/20 rounded-full h-10 w-10 p-0 flex items-center justify-center">
@@ -739,6 +796,82 @@ export default function Room() {
         onSettingsChange={s => { setSettings(s); setSoundEnabled(s.spellSoundsEnabled); }}
         onShowGestureTutorial={() => setShowGestureTutorial(true)}
       />
+
+      {/* ─── SHARE SHEET ────────────────────────────────────── */}
+      <AnimatePresence>
+        {shareOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+              onClick={() => setShareOpen(false)}
+            />
+            {/* Sheet */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ type: 'spring', damping: 24, stiffness: 260 }}
+              className="fixed z-50 inset-x-4 bottom-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-96 parchment rounded-2xl magic-border shadow-2xl p-6 flex flex-col gap-4"
+              style={{ background: 'rgba(10,8,20,0.97)' }}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <h2 className="font-harry text-primary text-lg">Invite a Wizard</h2>
+                <button onClick={() => setShareOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors p-1">
+                  <LuX className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Room code pill */}
+              <div className="space-y-1">
+                <p className="font-cinzel text-xs text-muted-foreground uppercase tracking-widest">Room Code</p>
+                <div className="flex items-center gap-2 bg-black/40 rounded-xl px-4 py-3 border border-primary/20">
+                  <span className="font-cinzel text-base text-primary tracking-widest flex-1 select-all">{roomId}</span>
+                  <button onClick={copyRoomId}
+                    className="text-primary/60 hover:text-primary transition-colors p-1 rounded-lg hover:bg-primary/10">
+                    <LuCopy className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* QR code */}
+              <div className="flex flex-col items-center gap-2 bg-black/30 rounded-xl p-4">
+                <QRCodeSVG value={shareUrl} size={150} bgColor="transparent" fgColor="#D4AF37" />
+                <p className="font-cinzel text-[10px] text-muted-foreground uppercase tracking-widest">Scan to join</p>
+              </div>
+
+              {/* Join link */}
+              <div className="space-y-1">
+                <p className="font-cinzel text-xs text-muted-foreground uppercase tracking-widest">Join Link</p>
+                <div className="flex items-center gap-2 bg-black/40 rounded-xl px-3 py-2 border border-primary/20">
+                  <LuLink className="w-3.5 h-3.5 text-primary/40 flex-shrink-0" />
+                  <span className="font-cinzel text-xs text-muted-foreground flex-1 truncate select-all">{shareUrl}</span>
+                  <button onClick={copyShareLink}
+                    className="text-primary/60 hover:text-primary transition-colors p-1 rounded-lg hover:bg-primary/10 flex-shrink-0">
+                    <LuCopy className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2">
+                <Button variant="ghost" className="flex-1 font-cinzel text-sm border border-primary/30 hover:bg-primary/10 text-primary"
+                  onClick={copyShareLink}>
+                  <LuCopy className="w-4 h-4 mr-2" />Copy Link
+                </Button>
+                {typeof navigator.share === 'function' && (
+                  <Button variant="ghost" className="flex-1 font-cinzel text-sm border border-primary/30 hover:bg-primary/10 text-primary"
+                    onClick={() => navigator.share({ title: `Join room: ${roomId}`, url: shareUrl }).catch(() => {})}>
+                    <LuShare2 className="w-4 h-4 mr-2" />Share
+                  </Button>
+                )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
