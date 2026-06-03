@@ -44,6 +44,8 @@ services:
         value: 10000
       - key: ALLOWED_ORIGINS
         value: https://hogwarts-floo-network.onrender.com
+      - key: VITE_SOCKET_URL
+        value: https://hogwarts-floo-network.onrender.com
       - key: VITE_TURN_URL
         value: turn:openrelay.metered.ca:80
       - key: VITE_TURN_USER

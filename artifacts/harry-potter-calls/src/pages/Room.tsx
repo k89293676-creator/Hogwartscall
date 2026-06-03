@@ -69,7 +69,8 @@ export default function Room() {
   const { roomId } = useParams<{ roomId: string }>();
   const search = useSearch();
   const [, setLocation] = useLocation();
-  const socket = useSocket();
+  // BUG 6 FIX: pass roomId to useSocket so socket lifecycle is scoped per room
+  const socket = useSocket(roomId || '');
   const { toast } = useToast();
 
   const params = new URLSearchParams(search);
@@ -105,7 +106,7 @@ export default function Room() {
 
   const { localStream, remoteStream, dataChannel, connectionStatus, setLocalStream, peerConnectionRef } = useWebRTC(socket, roomId!);
   const { landmarks, currentGesture } = useGesture(localStream);
-  const { currentSpell, cooldowns, castSpell } = useSpells(currentGesture);
+  const { currentSpell, cooldowns, castSpell, setSoundEnabled: setSpellSoundEnabled } = useSpells(currentGesture);
 
   // Reactive isMobile — updates on resize
   useEffect(() => {
@@ -306,7 +307,8 @@ export default function Room() {
       });
 
       setLocalStream(stream);
-      socket.emit('join-room', roomId);
+      // BUG 4 FIX: send wizardName + house on join so server/peers know who you are
+      socket.emit('join-room', { roomID: roomId, wizardName, house });
     };
 
     initMedia();
@@ -338,6 +340,55 @@ export default function Room() {
     }, 5000);
     return () => clearInterval(interval);
   }, [connectionStatus, peerConnectionRef]);
+
+  // BUG 1 FIX: handle room-full and server error events
+  useEffect(() => {
+    const onRoomFull = ({ roomID }: { roomID?: string }) => {
+      toast({
+        title: '🚫 Chamber is Full',
+        description: `Room ${roomID || roomId} already has the maximum number of wizards.`,
+        variant: 'destructive',
+      });
+      leaveRoom();
+    };
+    const onError = ({ message }: { message?: string }) => {
+      toast({
+        title: '⚠️ Magical Disturbance',
+        description: message || 'An error occurred in the Floo Network.',
+        variant: 'destructive',
+      });
+    };
+    socket.on('room-full', onRoomFull);
+    socket.on('error', onError);
+    return () => {
+      socket.off('room-full', onRoomFull);
+      socket.off('error', onError);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [socket, roomId]);
+
+  // BUG 3 FIX: relay spell to remote peer via socket (DataChannel not yet open at spell time)
+  useEffect(() => {
+    if (!currentSpell) return;
+    socket.emit('spell', { roomID: roomId, spellName: currentSpell, color: SPELLS.find(s => s.name === currentSpell)?.color ?? '#D4AF37' });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSpell]);
+
+  // BUG 3.2 FIX: receive remote spell events and show them in spell history
+  useEffect(() => {
+    const onRemoteSpell = ({ spellName, color, wizardName: casterName }: { spellName: string; color: string; wizardName: string }) => {
+      const spell = SPELLS.find(s => s.name === spellName);
+      if (!spell) return;
+      setSpellHistory(prev => {
+        const entry: SpellHistoryEntry = { name: `${casterName}: ${spellName}`, color, icon: spell.icon, timestamp: Date.now() };
+        return [entry, ...prev].slice(0, 5);
+      });
+      if (soundEnabled) playMagicalChime(color);
+    };
+    socket.on('spell', onRemoteSpell);
+    return () => { socket.off('spell', onRemoteSpell); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [socket, soundEnabled]);
 
   // Track spell history
   useEffect(() => {
@@ -574,11 +625,8 @@ export default function Room() {
           <LuShare2 className="w-3 h-3 text-primary/60 group-hover:text-primary flex-shrink-0 transition-colors" />
         </button>
 
+        {/* BUG 8 FIX: removed duplicate Share button — only the room-ID pill opens the share sheet */}
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" onClick={shareRoom}
-            className="text-primary hover:text-primary hover:bg-primary/20" title="Share room link">
-            <LuShare2 className="w-4 h-4" />
-          </Button>
           <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)}
             className="text-primary hover:text-primary hover:bg-primary/20 hidden md:flex">
             <LuSettings className="w-4 h-4" />
@@ -766,6 +814,11 @@ export default function Room() {
               <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 rounded-full text-[9px] flex items-center justify-center font-bold">{unreadCount}</span>
             )}
           </Button>
+          {/* BUG 11 FIX: mobile wand button to open spell sheet */}
+          <Button variant="ghost" size="icon" onClick={() => setMobileSpellOpen(true)}
+            className="rounded-full h-10 w-10 text-primary hover:bg-primary/20" title="Cast a spell">
+            <LuWand className="w-4 h-4" />
+          </Button>
           <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)}
             className="rounded-full h-10 w-10 text-primary hover:bg-primary/20">
             <LuSettings className="w-4 h-4" />
@@ -824,7 +877,7 @@ export default function Room() {
                 <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 rounded-full text-[9px] flex items-center justify-center font-bold">{unreadCount}</span>
               )}
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => setSoundEnabled(!soundEnabled)}
+            <Button variant="ghost" size="icon" onClick={() => { const s = !soundEnabled; setSoundEnabled(s); setSpellSoundEnabled(s); }}
               className={`rounded-full h-10 w-10 ${soundEnabled ? 'text-primary hover:bg-primary/20' : 'text-muted-foreground hover:bg-primary/10'}`}>
               {soundEnabled ? <LuVolume2 className="w-4 h-4" /> : <LuVolumeX className="w-4 h-4" />}
             </Button>
@@ -865,7 +918,7 @@ export default function Room() {
       <SettingsPanel
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
-        onSettingsChange={s => { setSettings(s); setSoundEnabled(s.spellSoundsEnabled); }}
+        onSettingsChange={s => { setSettings(s); setSoundEnabled(s.spellSoundsEnabled); setSpellSoundEnabled(s.spellSoundsEnabled); }}
         onShowGestureTutorial={() => setShowGestureTutorial(true)}
       />
 

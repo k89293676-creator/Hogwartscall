@@ -36,6 +36,21 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    // BUG 14 FIX: split heavy deps into separate chunks for faster initial load
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          framer: ['framer-motion'],
+          socket: ['socket.io-client'],
+          ui: ['@radix-ui/react-dialog', '@radix-ui/react-switch'],
+        },
+      },
+    },
+    // Target modern browsers — smaller bundles, native ESM
+    target: ['es2020', 'chrome90', 'firefox88', 'safari14'],
+    // Warn on chunks > 600kB (MediaPipe is unavoidably large)
+    chunkSizeWarningLimit: 700,
   },
   server: {
     port,

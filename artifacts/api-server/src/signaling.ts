@@ -2,7 +2,10 @@ import { Server as HttpServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import { logger } from './lib/logger';
 
+interface WizardMeta { wizardName: string; house: string; }
+
 const rooms = new Map<string, Set<string>>();
+const wizardMeta = new Map<string, WizardMeta>();
 const MAX_ROOM_SIZE = 4;
 
 export function attachSignaling(httpServer: HttpServer): SocketIOServer {
@@ -28,7 +31,20 @@ export function attachSignaling(httpServer: HttpServer): SocketIOServer {
   io.on('connection', (socket) => {
     logger.info({ socketId: socket.id }, 'Socket connected');
 
-    socket.on('join-room', (roomID: string) => {
+    // BUG 4 FIX: join-room now accepts { roomID, wizardName, house }
+    socket.on('join-room', (payload: string | { roomID: string; wizardName?: string; house?: string }) => {
+      let roomID: string;
+      let wizardName = 'Wizard';
+      let house = '';
+
+      if (typeof payload === 'string') {
+        roomID = payload;
+      } else {
+        roomID = payload.roomID;
+        wizardName = payload.wizardName || 'Wizard';
+        house = payload.house || '';
+      }
+
       if (typeof roomID !== 'string' || !roomID.trim()) {
         socket.emit('error', { message: 'Invalid room ID' });
         return;
@@ -43,12 +59,33 @@ export function attachSignaling(httpServer: HttpServer): SocketIOServer {
         return;
       }
 
+      // Store wizard metadata
+      wizardMeta.set(socket.id, { wizardName, house });
+
       socket.join(trimmedRoom);
       room.add(socket.id);
-      const users = Array.from(room);
+
+      // Collect existing participants' info
+      const existingPeers: Array<{ socketId: string; wizardName: string; house: string }> = [];
+      room.forEach(id => {
+        if (id !== socket.id) {
+          const meta = wizardMeta.get(id);
+          existingPeers.push({ socketId: id, wizardName: meta?.wizardName || 'Wizard', house: meta?.house || '' });
+        }
+      });
+
+      // Send existing participants to the joiner
+      socket.emit('peer-info', existingPeers);
+
+      // Notify existing participants about new joiner
+      socket.to(trimmedRoom).emit('peer-joined', { socketId: socket.id, wizardName, house });
+
+      // Also send legacy events
       socket.to(trimmedRoom).emit('user-joined', socket.id);
+      const users = Array.from(room);
       socket.emit('room-joined', users);
-      logger.info({ roomID: trimmedRoom, socketId: socket.id, users }, 'User joined room');
+
+      logger.info({ roomID: trimmedRoom, socketId: socket.id, wizardName, house, users }, 'User joined room');
     });
 
     socket.on('offer', ({ to, offer }: { to: string; offer: unknown }) => {
@@ -66,12 +103,35 @@ export function attachSignaling(httpServer: HttpServer): SocketIOServer {
       io.to(to).emit('ice-candidate', { from: socket.id, candidate });
     });
 
+    // BUG 3 FIX: relay spell events to all others in the room
+    socket.on('spell', ({ roomID, spellName, color }: { roomID: string; spellName: string; color: string }) => {
+      const meta = wizardMeta.get(socket.id);
+      socket.to(roomID).emit('spell', {
+        from: socket.id,
+        spellName,
+        color,
+        wizardName: meta?.wizardName || 'Wizard',
+      });
+    });
+
+    // Feature 2.5: relay reaction events as fallback
+    socket.on('reaction', ({ roomID, emoji }: { roomID: string; emoji: string }) => {
+      socket.to(roomID).emit('reaction', { from: socket.id, emoji });
+    });
+
+    // BUG 5 FIX: emit wizard info with user-disconnected
     socket.on('disconnect', () => {
       logger.info({ socketId: socket.id }, 'Socket disconnected');
+      const meta = wizardMeta.get(socket.id);
+      wizardMeta.delete(socket.id);
       for (const [roomID, sockets] of rooms) {
         if (sockets.has(socket.id)) {
           sockets.delete(socket.id);
-          socket.to(roomID).emit('user-disconnected', socket.id);
+          socket.to(roomID).emit('user-disconnected', {
+            socketId: socket.id,
+            wizardName: meta?.wizardName || 'Wizard',
+            house: meta?.house || '',
+          });
           if (sockets.size === 0) rooms.delete(roomID);
         }
       }
@@ -79,4 +139,11 @@ export function attachSignaling(httpServer: HttpServer): SocketIOServer {
   });
 
   return io;
+}
+
+// Export for health check
+export function getRoomStats() {
+  let connections = 0;
+  rooms.forEach(r => { connections += r.size; });
+  return { rooms: rooms.size, connections };
 }
